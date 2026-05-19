@@ -5,34 +5,18 @@ import Testing
 @MainActor
 @Suite
 struct RootViewModelTests {
-    let baseURL = URL(string: "https://api.test")!
 
-    let session = AuthSession(
-        accessToken: "a",
-        refreshToken: "r",
-        expiresAt: Date(timeIntervalSince1970: 1_900_000_000)
-    )
-
-    // MARK: - Cold start happy paths
+    // MARK: - Cold start: routing by goal context + HealthKit-asked state
 
     @Test
     func startWhenNoCachedGoalContextRoutesToGoalSetup() async throws {
         // Given
-        let mock = MockHTTPClient()
-        await mock.enqueue(
-            status: 200,
-            body: Data(#"{"userId":"u-1"}"#.utf8),
-            url: baseURL.appendingPathComponent("user")
-        )
-        await mock.enqueue(
-            status: 200,
-            body: Data(#"{"hasContext":false,"context":null}"#.utf8),
-            url: baseURL.appendingPathComponent("goal/context")
-        )
-        let viewModel = makeViewModel(
-            mock: mock,
-            currentSession: .returns(session),
-            hasAskedForHealthKit: false
+        let goalService = FakeGoalService()
+        await goalService.programGetContext(.success(GoalContextResponse(hasContext: false, context: nil)))
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let viewModel = await makeViewModel(
+            goalService: goalService,
+            userDefaults: defaults
         )
 
         // When
@@ -45,21 +29,12 @@ struct RootViewModelTests {
     @Test
     func startWhenContextExistsButHealthKitNotYetAskedRoutesToPermission() async throws {
         // Given
-        let mock = MockHTTPClient()
-        await mock.enqueue(
-            status: 200,
-            body: Data(#"{"userId":"u-1"}"#.utf8),
-            url: baseURL.appendingPathComponent("user")
-        )
-        await mock.enqueue(
-            status: 200,
-            body: Data(goalContextResponseJSON).utf8 |> { Data($0) },
-            url: baseURL.appendingPathComponent("goal/context")
-        )
-        let viewModel = makeViewModel(
-            mock: mock,
-            currentSession: .returns(session),
-            hasAskedForHealthKit: false
+        let goalService = FakeGoalService()
+        await goalService.programGetContext(.success(populatedGoalContextResponse))
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let viewModel = await makeViewModel(
+            goalService: goalService,
+            userDefaults: defaults
         )
 
         // When
@@ -72,21 +47,12 @@ struct RootViewModelTests {
     @Test
     func startWhenContextExistsAndHealthKitAlreadyAskedRoutesToDailyInsight() async throws {
         // Given
-        let mock = MockHTTPClient()
-        await mock.enqueue(
-            status: 200,
-            body: Data(#"{"userId":"u-1"}"#.utf8),
-            url: baseURL.appendingPathComponent("user")
-        )
-        await mock.enqueue(
-            status: 200,
-            body: Data(goalContextResponseJSON.utf8),
-            url: baseURL.appendingPathComponent("goal/context")
-        )
-        let viewModel = makeViewModel(
-            mock: mock,
-            currentSession: .returns(session),
-            hasAskedForHealthKit: true
+        let goalService = FakeGoalService()
+        await goalService.programGetContext(.success(populatedGoalContextResponse))
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: true)
+        let viewModel = await makeViewModel(
+            goalService: goalService,
+            userDefaults: defaults
         )
 
         // When
@@ -99,59 +65,48 @@ struct RootViewModelTests {
     // MARK: - Cold start failures
 
     @Test
-    func startWhenAuthBootstrapThrowsRoutesToError() async throws {
-        // Given
-        let mock = MockHTTPClient()
-        let viewModel = makeViewModel(
-            mock: mock,
-            currentSession: .throws_(FakeError.network),
-            signIn: .throws_(FakeError.network),
-            hasAskedForHealthKit: false
-        )
-
-        // When
-        await viewModel.start()
-
-        // Then
-        if case .error = viewModel.route {
-            #expect(Bool(true))
-        } else {
-            Issue.record("expected .error route, got \(viewModel.route)")
-        }
-    }
-
-    @Test
     func startWhenUserSyncFailsRoutesToError() async throws {
         // Given
-        let mock = MockHTTPClient()
-        await mock.enqueue(status: 503, url: baseURL.appendingPathComponent("user"))
-        let viewModel = makeViewModel(
-            mock: mock,
-            currentSession: .returns(session),
-            hasAskedForHealthKit: false
+        let userService = FakeUserService()
+        await userService.program(.failure(FakeError.network))
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let viewModel = await makeViewModel(
+            userService: userService,
+            userDefaults: defaults
         )
 
         // When
         await viewModel.start()
 
         // Then
-        if case .error = viewModel.route {
-            #expect(Bool(true))
-        } else {
-            Issue.record("expected .error route, got \(viewModel.route)")
-        }
+        #expect(viewModel.route == .error(genericErrorMessage))
     }
 
-    // MARK: - Transitions from child features
+    @Test
+    func startWhenGetContextFailsRoutesToError() async throws {
+        // Given
+        let goalService = FakeGoalService()
+        await goalService.programGetContext(.failure(FakeError.network))
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let viewModel = await makeViewModel(
+            goalService: goalService,
+            userDefaults: defaults
+        )
+
+        // When
+        await viewModel.start()
+
+        // Then
+        #expect(viewModel.route == .error(genericErrorMessage))
+    }
+
+    // MARK: - Child-feature transitions
 
     @Test
-    func goalSetupCompletedRoutesToHealthKitPermission() {
+    func goalSetupCompletedRoutesToHealthKitPermission() async {
         // Given
-        let viewModel = makeViewModel(
-            mock: MockHTTPClient(),
-            currentSession: .returns(session),
-            hasAskedForHealthKit: false
-        )
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let viewModel = await makeViewModel(userDefaults: defaults)
 
         // When
         viewModel.goalSetupCompleted()
@@ -161,89 +116,71 @@ struct RootViewModelTests {
     }
 
     @Test
-    func healthKitPermissionFinishedRoutesToDailyInsightAndPersistsAskedFlag() {
+    func healthKitPermissionFinishedRoutesToDailyInsightAndPersistsAskedFlag() async {
         // Given
-        let userDefaults = makeTestUserDefaults()
-        let viewModel = makeViewModel(
-            mock: MockHTTPClient(),
-            currentSession: .returns(session),
-            userDefaults: userDefaults
-        )
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let viewModel = await makeViewModel(userDefaults: defaults)
 
         // When
         viewModel.healthKitPermissionFinished()
 
         // Then
         #expect(viewModel.route == .dailyInsight)
-        #expect(userDefaults.bool(forKey: PreferenceKeys.hasAskedForHealthKitAuthorization))
+        #expect(defaults.bool(forKey: PreferenceKeys.hasAskedForHealthKitAuthorization))
     }
 
     // MARK: - Helpers
 
-    /// A minimal goal-context payload that simulates a fully-set-up user.
-    private var goalContextResponseJSON: String {
-        """
-        {
-          "hasContext": true,
-          "context": {
-            "goalType": "endurance_event",
-            "goalSummary": "Ironman 70.3",
-            "targetDate": null,
-            "motivation": "first race",
-            "currentState": "training 6h/wk",
-            "biggestConcern": "swim",
-            "lifestyle": "office job",
-            "previouslyTried": null,
-            "injuriesOrLimitations": null,
-            "priorityMetrics": ["vo2Max", "restingHeartRate", "heartRateVariabilitySDNN", "sleepHours", "activeEnergyBurned"],
-            "sportsOrActivities": ["running", "cycling", "swimming"],
-            "subGoals": []
-          }
-        }
-        """
+    /// Matches the literal in ``RootViewModel/start()`` for the error route.
+    private let genericErrorMessage = "We couldn't reach the server. Try again."
+
+    private var populatedGoalContextResponse: GoalContextResponse {
+        GoalContextResponse(
+            hasContext: true,
+            context: GoalContext(
+                goalType: .enduranceEvent,
+                goalSummary: "Ironman 70.3",
+                targetDate: nil,
+                motivation: "first race",
+                currentState: "training 6h/wk",
+                biggestConcern: "swim",
+                lifestyle: "office job",
+                previouslyTried: nil,
+                injuriesOrLimitations: nil,
+                priorityMetrics: ["vo2Max", "restingHeartRate", "heartRateVariabilitySDNN", "sleepHours", "activeEnergyBurned"],
+                sportsOrActivities: ["running", "cycling", "swimming"],
+                subGoals: []
+            )
+        )
     }
 
-    private func makeTestUserDefaults(hasAskedForHealthKit: Bool = false) -> UserDefaults {
+    /// Builds a `RootViewModel` with sensible defaults for happy-path tests.
+    /// Tests that need a specific failure pre-program their fake and pass it in.
+    private func makeViewModel(
+        userService: any UserServicing = FakeUserService(),
+        goalService: any GoalServicing = FakeGoalService(),
+        userDefaults: UserDefaults
+    ) async -> RootViewModel {
+        let session = AuthSession(
+            accessToken: "a",
+            refreshToken: "r",
+            expiresAt: Date(timeIntervalSince1970: 1_900_000_000)
+        )
+        let backend = FakeAuthBackend()
+        await backend.programCurrentSession(.returns(session))
+
+        return RootViewModel(
+            authService: AuthService(backend: backend),
+            userService: userService,
+            goalService: goalService,
+            userDefaults: userDefaults
+        )
+    }
+
+    private func makeTestUserDefaults(hasAskedForHealthKit: Bool) -> UserDefaults {
         let suiteName = "RootViewModelTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.set(hasAskedForHealthKit, forKey: PreferenceKeys.hasAskedForHealthKitAuthorization)
         return defaults
     }
-
-    private func makeViewModel(
-        mock: MockHTTPClient,
-        currentSession: FakeAuthBackend.Scenario,
-        signIn: FakeAuthBackend.Scenario = .returns(AuthSession(
-            accessToken: "a",
-            refreshToken: "r",
-            expiresAt: Date(timeIntervalSince1970: 1_900_000_000)
-        )),
-        userDefaults: UserDefaults? = nil,
-        hasAskedForHealthKit: Bool = false
-    ) -> RootViewModel {
-        let defaults = userDefaults ?? makeTestUserDefaults(hasAskedForHealthKit: hasAskedForHealthKit)
-
-        let backend = FakeAuthBackend()
-        Task { await backend.programCurrentSession(currentSession) }
-        Task { await backend.programSignIn(signIn) }
-        // The Tasks above are sync-fire-and-forget; for deterministic tests
-        // we await them inline via a synchronous wrapper below.
-        let authService = AuthService(backend: backend)
-        let apiClient = APIClient(
-            baseURL: baseURL,
-            httpClient: mock,
-            tokenProvider: { "t" },
-            refreshToken: {}
-        )
-        return RootViewModel(
-            authService: authService,
-            userService: UserService(client: apiClient),
-            goalService: GoalService(client: apiClient),
-            userDefaults: defaults
-        )
-    }
 }
-
-/// `|>` is intentionally not added — see test where I forgot and fix it.
-infix operator |>
-func |> <A, B>(value: A, transform: (A) -> B) -> B { transform(value) }
