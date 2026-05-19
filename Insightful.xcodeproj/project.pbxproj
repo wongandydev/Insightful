@@ -6,6 +6,14 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		AF3026532FACC0DE00333AA5 /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = AF3026522FACC0DE00333AA5 /* Auth */; };
+		AF3026552FACC0DE00333AA5 /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = AF3026542FACC0DE00333AA5 /* Functions */; };
+		AF3026572FACC0DE00333AA5 /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = AF3026562FACC0DE00333AA5 /* PostgREST */; };
+		AF3026592FACC0DE00333AA5 /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = AF3026582FACC0DE00333AA5 /* Realtime */; };
+		AF30265B2FACC0DE00333AA5 /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = AF30265A2FACC0DE00333AA5 /* Storage */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		AF89D6162FA8265F00671CDB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -29,9 +37,22 @@
 		AF89D61F2FA8265F00671CDB /* InsightfulUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InsightfulUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AF40D7B42FB69A3B00268B3A /* Exceptions for "Insightful" folder in "Insightful" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = AF89D6072FA8265D00671CDB /* Insightful */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		AF89D60A2FA8265D00671CDB /* Insightful */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AF40D7B42FB69A3B00268B3A /* Exceptions for "Insightful" folder in "Insightful" target */,
+			);
 			path = Insightful;
 			sourceTree = "<group>";
 		};
@@ -52,6 +73,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AF3026572FACC0DE00333AA5 /* PostgREST in Frameworks */,
+				AF3026552FACC0DE00333AA5 /* Functions in Frameworks */,
+				AF3026532FACC0DE00333AA5 /* Auth in Frameworks */,
+				AF30265B2FACC0DE00333AA5 /* Storage in Frameworks */,
+				AF3026592FACC0DE00333AA5 /* Realtime in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +138,11 @@
 			);
 			name = Insightful;
 			packageProductDependencies = (
+				AF3026522FACC0DE00333AA5 /* Auth */,
+				AF3026542FACC0DE00333AA5 /* Functions */,
+				AF3026562FACC0DE00333AA5 /* PostgREST */,
+				AF3026582FACC0DE00333AA5 /* Realtime */,
+				AF30265A2FACC0DE00333AA5 /* Storage */,
 			);
 			productName = Insightful;
 			productReference = AF89D6082FA8265D00671CDB /* Insightful.app */;
@@ -195,6 +226,9 @@
 			);
 			mainGroup = AF89D5FF2FA8265D00671CDB;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AF3026512FACC0DD00333AA5 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AF89D6092FA8265D00671CDB /* Products */;
 			projectDirPath = "";
@@ -395,26 +429,34 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Insightful/Insightful.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = EURL27CLKV;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Insightful/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "  Insightful uses your Apple Health metrics to generate personalized daily insights about your training and recovery.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 18;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.andy.Insightful;
+				PRODUCT_BUNDLE_IDENTIFIER = com.andywong.Insightful;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -427,16 +469,21 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Insightful/Insightful.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = EURL27CLKV;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Insightful/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "  Insightful uses your Apple Health metrics to generate personalized daily insights about your training and recovery.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 18;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -445,8 +492,11 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.andy.Insightful;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -578,6 +628,45 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AF3026512FACC0DD00333AA5 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift.git";
+			requirement = {
+				kind = revision;
+				revision = 06ae7b34ec21406cbd3e643bee7a8a54206fa8f5;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AF3026522FACC0DE00333AA5 /* Auth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AF3026512FACC0DD00333AA5 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Auth;
+		};
+		AF3026542FACC0DE00333AA5 /* Functions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AF3026512FACC0DD00333AA5 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Functions;
+		};
+		AF3026562FACC0DE00333AA5 /* PostgREST */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AF3026512FACC0DD00333AA5 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = PostgREST;
+		};
+		AF3026582FACC0DE00333AA5 /* Realtime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AF3026512FACC0DD00333AA5 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Realtime;
+		};
+		AF30265A2FACC0DE00333AA5 /* Storage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AF3026512FACC0DD00333AA5 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Storage;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AF89D6002FA8265D00671CDB /* Project object */;
 }
