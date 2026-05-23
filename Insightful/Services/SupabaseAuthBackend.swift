@@ -49,6 +49,10 @@ struct SupabaseAuthBackend: AuthBackend {
         return Self.adapt(session)
     }
 
+    func signOut() async throws {
+        try await client.signOut()
+    }
+
     private static func adapt(_ session: Session) -> AuthSession {
         AuthSession(
             accessToken: session.accessToken,

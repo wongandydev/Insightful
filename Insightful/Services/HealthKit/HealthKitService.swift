@@ -1,6 +1,16 @@
 import Foundation
 import HealthKit
 
+protocol HealthKitServicing: Sendable {
+    /// Triggers the iOS permission sheet covering every whitelisted metric.
+    /// Idempotent — iOS no-ops once the user has made their initial decision.
+    func requestAuthorization() async throws
+
+    /// Reads the requested metrics over a trailing window of `days` calendar
+    /// days, keyed by ``HealthKitMetric/rawValue``.
+    func readDailyMetrics(over days: Int, metrics: [HealthKitMetric]) async throws -> [String: MetricValue]
+}
+
 /// Reads HealthKit and produces a `[String: MetricValue]` ready for
 /// ``InsightService/generate(date:metrics:)``.
 ///
@@ -8,7 +18,7 @@ import HealthKit
 /// are inherently I/O-bound. Reads are issued through a ``HealthKitReading``
 /// so this type stays unit-testable against an in-memory fake — production
 /// wires in ``HealthKitStoreReader``.
-actor HealthKitService {
+actor HealthKitService: HealthKitServicing {
     private let reader: HealthKitReading
 
     init(reader: HealthKitReading) {

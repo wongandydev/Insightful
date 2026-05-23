@@ -27,4 +27,8 @@ protocol AuthBackend: Sendable {
 
     /// Force a token refresh. Called by `APIClient` on a 401.
     func refreshSession() async throws -> AuthSession
+
+    /// Sign the current user out and clear any SDK-side cached session.
+    /// A subsequent `currentSession()` returns `nil`.
+    func signOut() async throws
 }

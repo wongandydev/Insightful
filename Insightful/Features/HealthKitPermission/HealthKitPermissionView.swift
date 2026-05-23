@@ -1,19 +1,50 @@
 import SwiftUI
 
-/// Stub for the HealthKit permission screen. Replaced by the real
-/// explainer + system prompt trigger when the feature ships.
+/// Explains why the app needs HealthKit access and triggers the iOS
+/// permission sheet via ``HealthKitPermissionViewModel/requestAccess()``.
 struct HealthKitPermissionView: View {
-    let onFinished: () -> Void
+    @State private var viewModel: HealthKitPermissionViewModel
+
+    init(healthKitService: any HealthKitServicing, onFinished: @escaping () -> Void) {
+        _viewModel = State(initialValue: HealthKitPermissionViewModel(
+            healthKitService: healthKitService,
+            onFinished: onFinished
+        ))
+    }
 
     var body: some View {
-        VStack(spacing: 16) {
-            Text("Connect Apple Health").font(.title2.bold())
-            Text("We'll read your sleep, recovery, heart rate, and workouts to deliver insights grounded in your actual data.")
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            Button("Continue", action: onFinished)
-                .buttonStyle(.borderedProminent)
+        VStack(spacing: 24) {
+            Spacer()
+            Image(systemName: "heart.text.square.fill")
+                .font(.system(size: 72))
+                .foregroundStyle(.pink)
+            VStack(spacing: 12) {
+                Text("Connect Apple Health")
+                    .font(.title.bold())
+                Text("We read sleep, recovery, heart rate, and workouts to ground today's insight in your actual data — nothing leaves your phone without your sign-in.")
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 32)
+            }
+            Spacer()
+            Button {
+                Task { await viewModel.requestAccess() }
+            } label: {
+                Group {
+                    if viewModel.isRequesting {
+                        ProgressView().tint(.white)
+                    } else {
+                        Text("Connect Apple Health")
+                            .font(.headline)
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 28)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(viewModel.isRequesting)
+            .padding(.horizontal)
+            .padding(.bottom, 24)
         }
-        .padding()
     }
 }

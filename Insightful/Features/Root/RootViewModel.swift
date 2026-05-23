@@ -42,9 +42,10 @@ final class RootViewModel {
     ///    context but never asked HealthKit → ``RootRoute/healthKitPermission``;
     ///    otherwise → ``RootRoute/dailyInsight``.
     ///
-    /// Any throw collapses to ``RootRoute/error(_:)`` with a generic message —
-    /// we don't differentiate transport vs auth failures at this layer.
-    /// Idempotent: safe to call again after a retry from the error screen.
+    /// Any throw is bucketed into an ``AppError`` via ``AppError/from(_:)`` so
+    /// the error screen can render offline / server / rate-limited / unknown
+    /// copy distinctly. Idempotent: safe to call again after a retry from
+    /// the error screen.
     func start() async {
         route = .launching
         do {
@@ -53,7 +54,7 @@ final class RootViewModel {
             let context = try await goalService.getContext()
             route = decideRoute(hasGoalContext: context.hasContext)
         } catch {
-            route = .error("We couldn't reach the server. Try again.")
+            route = .error(AppError.from(error))
         }
     }
 

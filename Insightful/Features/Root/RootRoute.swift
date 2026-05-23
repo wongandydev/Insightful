@@ -23,6 +23,7 @@ enum RootRoute: Equatable, Sendable {
     case dailyInsight
 
     /// Hard cold-start failure (auth bootstrap or first server call). The
-    /// associated string is the user-facing message.
-    case error(String)
+    /// associated ``AppError`` carries the user-facing category so the view
+    /// can render distinct copy and iconography per failure mode.
+    case error(AppError)
 }

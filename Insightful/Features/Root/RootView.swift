@@ -37,14 +37,23 @@ struct RootView: View {
             case .launching:
                 LaunchView()
             case .goalSetup:
-                GoalSetupView(onComplete: { viewModel.goalSetupCompleted() })
+                GoalSetupView(
+                    goalService: goalService,
+                    onComplete: { viewModel.goalSetupCompleted() }
+                )
             case .healthKitPermission:
-                HealthKitPermissionView(onFinished: { viewModel.healthKitPermissionFinished() })
+                HealthKitPermissionView(
+                    healthKitService: healthKitService,
+                    onFinished: { viewModel.healthKitPermissionFinished() }
+                )
             case .dailyInsight:
-                DailyInsightView()
-            case .error(let message):
+                DailyInsightView(
+                    healthKitService: healthKitService,
+                    insightService: insightService
+                )
+            case .error(let appError):
                 AppErrorView(
-                    message: message,
+                    error: appError,
                     onRetry: { Task { await viewModel.start() } }
                 )
             }

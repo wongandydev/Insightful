@@ -44,5 +44,13 @@ final class AuthService {
         session = try await backend.refreshSession()
     }
 
+    /// Sign out and clear the cached session. After this, `bootstrap()` will
+    /// sign in a new anonymous user on next call.
+    func signOut() async throws {
+        try await backend.signOut()
+        session = nil
+        isReady = false
+    }
+
     var accessToken: String? { session?.accessToken }
 }
