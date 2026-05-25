@@ -6,11 +6,13 @@ import SwiftUI
 /// views below take only their own dependencies in their inits, never the
 /// whole graph.
 struct RootView: View {
+    private let authService: AuthService
     private let goalService: GoalService
     private let insightService: InsightService
     private let healthKitService: HealthKitService
 
     @State private var viewModel: RootViewModel
+    @State private var showSettings = false
 
     init(
         authService: AuthService,
@@ -20,6 +22,7 @@ struct RootView: View {
         healthKitService: HealthKitService,
         userDefaults: UserDefaults
     ) {
+        self.authService = authService
         self.goalService = goalService
         self.insightService = insightService
         self.healthKitService = healthKitService
@@ -49,7 +52,8 @@ struct RootView: View {
             case .dailyInsight:
                 DailyInsightView(
                     healthKitService: healthKitService,
-                    insightService: insightService
+                    insightService: insightService,
+                    onOpenSettings: { showSettings = true }
                 )
             case .error(let appError):
                 AppErrorView(
@@ -59,6 +63,19 @@ struct RootView: View {
             }
         }
         .task { await viewModel.start() }
+        .sheet(isPresented: $showSettings) {
+            SettingsView(
+                authService: authService,
+                onSignedOut: {
+                    showSettings = false
+                    Task { await viewModel.start() }
+                },
+                onResetGoal: {
+                    showSettings = false
+                    viewModel.userRequestedGoalReset()
+                }
+            )
+        }
     }
 }
 

@@ -75,6 +75,13 @@ final class RootViewModel {
         route = .dailyInsight
     }
 
+    /// Called by ``SettingsViewModel/resetGoal()`` when the user opts to
+    /// redo goal setup. Routes back to the goal-setup screen; auth and
+    /// HealthKit-asked state stay intact.
+    func userRequestedGoalReset() {
+        route = .goalSetup
+    }
+
     // MARK: - Internals
 
     private func decideRoute(hasGoalContext: Bool) -> RootRoute {

@@ -1,33 +1,49 @@
 import SwiftUI
 
 /// Renders today's insight: the agent's writeup, alert pills, recommended
-/// actions, and (in task 4) charts for the metrics the insight calls out.
+/// actions, and charts for the metrics the insight calls out. A gear in the
+/// toolbar lets the user open settings (sign out / re-do goal setup).
 struct DailyInsightView: View {
     @State private var viewModel: DailyInsightViewModel
+    private let onOpenSettings: () -> Void
 
     init(
         healthKitService: any HealthKitServicing,
-        insightService: any InsightServicing
+        insightService: any InsightServicing,
+        onOpenSettings: @escaping () -> Void
     ) {
         _viewModel = State(initialValue: DailyInsightViewModel(
             healthKitService: healthKitService,
             insightService: insightService
         ))
+        self.onOpenSettings = onOpenSettings
     }
 
     var body: some View {
-        Group {
-            switch viewModel.phase {
-            case .loading:
-                LoadingState()
-            case .ready(let insight):
-                InsightContent(
-                    insight: insight,
-                    metricsPayload: viewModel.metricsPayload
-                )
-            case .error(let message):
-                ErrorState(message: message) {
-                    Task { await viewModel.load() }
+        NavigationStack {
+            Group {
+                switch viewModel.phase {
+                case .loading:
+                    LoadingState()
+                case .ready(let insight):
+                    InsightContent(
+                        insight: insight,
+                        metricsPayload: viewModel.metricsPayload
+                    )
+                case .error(let message):
+                    ErrorState(message: message) {
+                        Task { await viewModel.load() }
+                    }
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        onOpenSettings()
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel("Settings")
                 }
             }
         }
