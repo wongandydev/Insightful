@@ -9,7 +9,10 @@ import Foundation
 /// SDK) as ``AppError/unknown``.
 enum AppError: Equatable {
     /// `URLSession` failed before reaching the server — no connectivity,
-    /// DNS, or TLS issue. Maps from ``APIError/transport(_:)``.
+    /// DNS, or TLS issue. Maps from ``APIError/transport(_:)`` and from any
+    /// raw `URLError` thrown by an SDK that does not go through
+    /// ``APIClient`` (notably the Supabase Auth SDK during
+    /// ``AuthService/bootstrap()``).
     case offline
 
     /// Backend returned 5xx. Maps from ``APIError/server(status:requestId:)``.
@@ -30,6 +33,7 @@ enum AppError: Equatable {
 
     /// Bucketises an arbitrary throw into a user-facing ``AppError``.
     static func from(_ error: Error) -> AppError {
+        if error is URLError { return .offline }
         guard let apiError = error as? APIError else { return .unknown }
         switch apiError {
         case .transport: return .offline

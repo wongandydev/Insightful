@@ -1,5 +1,8 @@
 import Foundation
 import Observation
+import OSLog
+
+private let logger = Logger(subsystem: "com.andy.Insightful", category: "RootViewModel")
 
 /// Drives the top-level routing decision for ``RootView``.
 ///
@@ -48,13 +51,25 @@ final class RootViewModel {
     /// the error screen.
     func start() async {
         route = .launching
+        logger.info("start: beginning cold-start sequence")
         do {
+            logger.info("start: step 1/3 — auth bootstrap")
             try await authService.bootstrap()
-            _ = try await userService.sync()
+
+            logger.info("start: step 2/3 — user sync")
+            let userId = try await userService.sync()
+            logger.info("start: user synced (id=\(userId, privacy: .private))")
+
+            logger.info("start: step 3/3 — goal context")
             let context = try await goalService.getContext()
-            route = decideRoute(hasGoalContext: context.hasContext)
+
+            let next = decideRoute(hasGoalContext: context.hasContext)
+            logger.info("start: success → \(String(describing: next), privacy: .public)")
+            route = next
         } catch {
-            route = .error(AppError.from(error))
+            let bucket = AppError.from(error)
+            logger.error("start: failed — type=\(String(describing: type(of: error)), privacy: .public) bucket=\(String(describing: bucket), privacy: .public) detail=\(String(describing: error), privacy: .public)")
+            route = .error(bucket)
         }
     }
 
