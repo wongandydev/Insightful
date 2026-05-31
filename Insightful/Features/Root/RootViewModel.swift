@@ -74,11 +74,12 @@ final class RootViewModel {
     }
 
     /// Called by ``GoalSetupViewModel`` when the agent reports
-    /// ``GoalStatus/goalComplete``. Transitions to the HealthKit permission
-    /// screen since the user has just finished goal setup and we haven't
-    /// asked for HealthKit access yet.
+    /// ``GoalStatus/goalComplete``. Defers the next-screen choice to
+    /// ``decideRoute(hasGoalContext:)`` so a returning user who already
+    /// granted HealthKit lands directly on ``RootRoute/dailyInsight``
+    /// instead of seeing the permission explainer again.
     func goalSetupCompleted() {
-        route = .healthKitPermission
+        route = decideRoute(hasGoalContext: true)
     }
 
     /// Called by ``HealthKitPermissionViewModel`` when the permission sheet

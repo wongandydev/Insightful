@@ -1,9 +1,11 @@
 import SwiftUI
+import UIKit
 
 /// Renders today's insight: the agent's writeup, alert pills, recommended
 /// actions, and charts for the metrics the insight calls out. A gear in the
 /// toolbar lets the user open settings (sign out / re-do goal setup).
 struct DailyInsightView: View {
+    @Environment(\.openURL) private var openURL
     @State private var viewModel: DailyInsightViewModel
     private let onOpenSettings: () -> Void
 
@@ -29,6 +31,15 @@ struct DailyInsightView: View {
                     InsightContent(
                         insight: insight,
                         metricsPayload: viewModel.metricsPayload
+                    )
+                case .noHealthData:
+                    NoHealthDataState(
+                        onOpenSettings: {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                openURL(url)
+                            }
+                        },
+                        onRetry: { Task { await viewModel.load() } }
                     )
                 case .error(let message):
                     ErrorState(message: message) {
@@ -74,6 +85,32 @@ private struct ErrorState: View {
             Text(message).multilineTextAlignment(.center)
             Button("Try again", action: onRetry)
                 .buttonStyle(.borderedProminent)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct NoHealthDataState: View {
+    let onOpenSettings: () -> Void
+    let onRetry: () -> Void
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "heart.text.square")
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+            Text("We can't see any Apple Health data yet.")
+                .font(.headline)
+                .multilineTextAlignment(.center)
+            Text("Open Settings to grant access, then come back.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button("Open Settings", action: onOpenSettings)
+                .buttonStyle(.borderedProminent)
+            Button("Try again", action: onRetry)
+                .buttonStyle(.bordered)
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)

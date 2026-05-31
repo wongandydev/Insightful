@@ -17,6 +17,9 @@ final class DailyInsightViewModel {
     enum Phase: Equatable {
         case loading
         case ready(Insight)
+        /// HealthKit returned no metrics for the trailing window — either the
+        /// user denied access or has no recorded data on device.
+        case noHealthData
         case error(String)
     }
 
@@ -46,10 +49,9 @@ final class DailyInsightViewModel {
     /// `/insight`, and updates ``phase``.
     ///
     /// HealthKit failures are bucketed with `/insight` failures because the
-    /// user-facing outcome is the same — the screen cannot proceed. A
-    /// HealthKit read that returns an empty dictionary is **not** an error:
-    /// the backend treats missing keys as "not synced" and still generates
-    /// an insight, so we forward the empty payload as-is.
+    /// user-facing outcome is the same — the screen cannot proceed. An
+    /// empty HealthKit read short-circuits to ``Phase/noHealthData`` so the
+    /// view can prompt the user to grant access; `/insight` is not called.
     func load() async {
         phase = .loading
         do {
@@ -57,6 +59,10 @@ final class DailyInsightViewModel {
                 over: Self.trailingDays,
                 metrics: HealthKitMetric.allCases
             )
+            if metrics.isEmpty {
+                phase = .noHealthData
+                return
+            }
             metricsPayload = metrics
             let insight = try await insightService.generate(
                 date: LocalCalendarDate.string(from: Date()),
