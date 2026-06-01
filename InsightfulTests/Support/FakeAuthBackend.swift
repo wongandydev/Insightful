@@ -13,14 +13,17 @@ actor FakeAuthBackend: AuthBackend {
     private var currentSessionResult: Scenario = .returnsNil
     private var signInResult: Scenario = .throws_(FakeError.notProgrammed)
     private var refreshResult: Scenario = .throws_(FakeError.notProgrammed)
+    private var signOutResult: Result<Void, any Error & Sendable> = .success(())
 
     private(set) var currentSessionCalls = 0
     private(set) var signInCalls = 0
     private(set) var refreshCalls = 0
+    private(set) var signOutCalls = 0
 
     func programCurrentSession(_ scenario: Scenario) { currentSessionResult = scenario }
     func programSignIn(_ scenario: Scenario) { signInResult = scenario }
     func programRefresh(_ scenario: Scenario) { refreshResult = scenario }
+    func programSignOut(_ result: Result<Void, any Error & Sendable>) { signOutResult = result }
 
     func currentSession() async throws -> AuthSession? {
         currentSessionCalls += 1
@@ -35,6 +38,11 @@ actor FakeAuthBackend: AuthBackend {
     func refreshSession() async throws -> AuthSession {
         refreshCalls += 1
         return try unwrapRequired(refreshResult)
+    }
+
+    func signOut() async throws {
+        signOutCalls += 1
+        try signOutResult.get()
     }
 
     private func unwrapOptional(_ scenario: Scenario) throws -> AuthSession? {

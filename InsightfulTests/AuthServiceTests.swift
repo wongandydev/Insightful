@@ -111,6 +111,43 @@ struct AuthServiceTests {
         #expect(service.session == initialSession, "prior session should remain intact")
     }
 
+    // MARK: - signOut
+
+    @Test
+    func signOutWhenSucceedsClearsSession() async throws {
+        // Given
+        let backend = FakeAuthBackend()
+        await backend.programCurrentSession(.returns(initialSession))
+        await backend.programSignOut(.success(()))
+        let service = AuthService(backend: backend)
+        try await service.bootstrap()
+
+        // When
+        try await service.signOut()
+
+        // Then
+        #expect(service.session == nil)
+        #expect(service.isReady == false)
+        #expect(await backend.signOutCalls == 1)
+    }
+
+    @Test
+    func signOutWhenBackendThrowsKeepsSession() async throws {
+        // Given
+        let backend = FakeAuthBackend()
+        await backend.programCurrentSession(.returns(initialSession))
+        await backend.programSignOut(.failure(FakeError.network))
+        let service = AuthService(backend: backend)
+        try await service.bootstrap()
+
+        // When
+        let error = await capturedError { try await service.signOut() }
+
+        // Then
+        #expect(error == FakeError.network)
+        #expect(service.session == initialSession, "session should remain on backend failure")
+    }
+
     // MARK: - accessToken
 
     @Test

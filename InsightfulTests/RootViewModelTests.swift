@@ -65,7 +65,7 @@ struct RootViewModelTests {
     // MARK: - Cold start failures
 
     @Test
-    func startWhenUserSyncFailsRoutesToError() async throws {
+    func startWhenUserSyncFailsWithUntypedErrorRoutesToUnknown() async throws {
         // Given
         let userService = FakeUserService()
         await userService.program(.failure(FakeError.network))
@@ -79,14 +79,14 @@ struct RootViewModelTests {
         await viewModel.start()
 
         // Then
-        #expect(viewModel.route == .error(genericErrorMessage))
+        #expect(viewModel.route == .error(.unknown))
     }
 
     @Test
-    func startWhenGetContextFailsRoutesToError() async throws {
+    func startWhenTransportFailsRoutesToOffline() async throws {
         // Given
         let goalService = FakeGoalService()
-        await goalService.programGetContext(.failure(FakeError.network))
+        await goalService.programGetContext(.failure(APIError.transport("no network")))
         let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
         let viewModel = await makeViewModel(
             goalService: goalService,
@@ -97,7 +97,61 @@ struct RootViewModelTests {
         await viewModel.start()
 
         // Then
-        #expect(viewModel.route == .error(genericErrorMessage))
+        #expect(viewModel.route == .error(.offline))
+    }
+
+    @Test
+    func startWhenServerFailsRoutesToServer() async throws {
+        // Given
+        let goalService = FakeGoalService()
+        await goalService.programGetContext(.failure(APIError.server(status: 503, requestId: nil)))
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let viewModel = await makeViewModel(
+            goalService: goalService,
+            userDefaults: defaults
+        )
+
+        // When
+        await viewModel.start()
+
+        // Then
+        #expect(viewModel.route == .error(.server))
+    }
+
+    @Test
+    func startWhenRateLimitedRoutesToRateLimited() async throws {
+        // Given
+        let goalService = FakeGoalService()
+        await goalService.programGetContext(.failure(APIError.rateLimited(retryAfterSeconds: 10, requestId: nil)))
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let viewModel = await makeViewModel(
+            goalService: goalService,
+            userDefaults: defaults
+        )
+
+        // When
+        await viewModel.start()
+
+        // Then
+        #expect(viewModel.route == .error(.rateLimited))
+    }
+
+    @Test
+    func startWhenDecodingFailsRoutesToDecoding() async throws {
+        // Given
+        let goalService = FakeGoalService()
+        await goalService.programGetContext(.failure(APIError.decoding("bad json", requestId: nil)))
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let viewModel = await makeViewModel(
+            goalService: goalService,
+            userDefaults: defaults
+        )
+
+        // When
+        await viewModel.start()
+
+        // Then
+        #expect(viewModel.route == .error(.decoding))
     }
 
     // MARK: - Child-feature transitions
@@ -116,6 +170,19 @@ struct RootViewModelTests {
     }
 
     @Test
+    func userRequestedGoalResetRoutesToGoalSetup() async {
+        // Given
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: true)
+        let viewModel = await makeViewModel(userDefaults: defaults)
+
+        // When
+        viewModel.userRequestedGoalReset()
+
+        // Then
+        #expect(viewModel.route == .goalSetup)
+    }
+
+    @Test
     func healthKitPermissionFinishedRoutesToDailyInsightAndPersistsAskedFlag() async {
         // Given
         let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
@@ -130,9 +197,6 @@ struct RootViewModelTests {
     }
 
     // MARK: - Helpers
-
-    /// Matches the literal in ``RootViewModel/start()`` for the error route.
-    private let genericErrorMessage = "We couldn't reach the server. Try again."
 
     private var populatedGoalContextResponse: GoalContextResponse {
         GoalContextResponse(
