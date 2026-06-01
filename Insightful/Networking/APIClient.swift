@@ -18,6 +18,7 @@ final class APIClient: Sendable {
     private let httpClient: HTTPClient
     private let tokenProvider: TokenProvider
     private let refreshToken: TokenRefresher
+    private let networkLogger: NetworkLogger
 
     init(
         baseURL: URL,
@@ -29,6 +30,7 @@ final class APIClient: Sendable {
         self.httpClient = httpClient
         self.tokenProvider = tokenProvider
         self.refreshToken = refreshToken
+        self.networkLogger = NetworkLogger(subsystem: "com.andy.Insightful", category: "Network")
     }
 
     func send<T: Decodable>(_ request: APIRequest<T>) async throws -> T {
@@ -42,22 +44,36 @@ final class APIClient: Sendable {
         allowRefresh: Bool
     ) async throws -> T {
         let urlRequest = try await buildURLRequest(from: request)
+        networkLogger.logRequest(
+            method: request.method,
+            path: request.path,
+            requiresAuth: request.requiresAuth
+        )
 
         let data: Data
         let http: HTTPURLResponse
         do {
             (data, http) = try await httpClient.send(urlRequest)
         } catch let error as APIError {
+            networkLogger.logTransportFailure(method: request.method, path: request.path, error: error)
             throw error
         } catch {
+            networkLogger.logTransportFailure(method: request.method, path: request.path, error: error)
             throw APIError.transport(error.localizedDescription)
         }
 
         let requestId = http.value(forHTTPHeaderField: "X-Request-Id")
+        networkLogger.logResponse(
+            method: request.method,
+            path: request.path,
+            status: http.statusCode,
+            requestId: requestId,
+            body: data
+        )
 
         switch http.statusCode {
         case 200..<300:
-            return try decode(data, requestId: requestId)
+            return try decode(data, requestId: requestId, method: request.method, path: request.path)
 
         case 401 where allowRefresh && request.requiresAuth:
             try? await refreshToken()
@@ -117,10 +133,16 @@ final class APIClient: Sendable {
         return urlRequest
     }
 
-    private func decode<T: Decodable>(_ data: Data, requestId: String?) throws -> T {
+    private func decode<T: Decodable>(
+        _ data: Data,
+        requestId: String?,
+        method: HTTPMethod,
+        path: String
+    ) throws -> T {
         do {
             return try JSONCoding.decoder.decode(T.self, from: data)
         } catch {
+            networkLogger.logDecodingFailure(method: method, path: path, requestId: requestId, error: error)
             throw APIError.decoding(String(describing: error), requestId: requestId)
         }
     }
