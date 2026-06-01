@@ -2,9 +2,7 @@ import Foundation
 
 /// Shared JSON coders for backend traffic.
 ///
-/// Backend payloads are camelCase except for `GoalContext`, which uses snake_case.
-/// We handle that with explicit `CodingKeys` on `GoalContext` rather than a global
-/// snake-case strategy — the rest of the API stays surprise-free.
+/// All backend payloads use camelCase keys (see `rules.md` wire format).
 ///
 /// Dates are exchanged as `YYYY-MM-DD` strings (see `IOS_CONTRACT.md` § 2). We do
 /// not configure a `dateEncodingStrategy` because no DTO field has type `Date`;

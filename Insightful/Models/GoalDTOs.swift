@@ -40,7 +40,7 @@ struct GoalContextResponse: Decodable, Equatable {
     let context: GoalContext?
 }
 
-// MARK: - GoalContext (snake_case on the wire)
+// MARK: - GoalContext
 
 enum GoalType: String, Codable, Equatable {
     case enduranceEvent = "endurance_event"
