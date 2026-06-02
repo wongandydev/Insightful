@@ -68,10 +68,20 @@ struct GoalSetupView: View {
     private var composer: some View {
         HStack(alignment: .bottom, spacing: 8) {
             TextField("Type your reply", text: $viewModel.userInput, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
+                .textFieldStyle(.plain)
                 .lineLimit(1...5)
                 .focused($inputFocused)
                 .disabled(viewModel.isSending)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .frame(minHeight: 40)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color(.secondarySystemBackground))
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .onTapGesture { inputFocused = true }
+
             Button {
                 inputFocused = false
                 Task { await viewModel.send() }

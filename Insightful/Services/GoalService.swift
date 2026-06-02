@@ -35,3 +35,4 @@ struct GoalService: GoalServicing {
         try await client.send(Endpoints.getGoalContext())
     }
 }
+
