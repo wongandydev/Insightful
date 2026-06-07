@@ -56,7 +56,7 @@ struct ServicesTests {
     func goalServiceStartReturnsDecodedThreadId() async throws {
         // Given
         let mock = MockHTTPClient()
-        let body = #"{"threadId":"t-1","status":"in_progress","message":"hi"}"#
+        let body = #"{"threadId":"t-1","status":"in_progress","messages":[{"role":"assistant","content":"hi"}]}"#
         await mock.enqueue(
             status: 200,
             body: Data(body.utf8),
@@ -70,13 +70,16 @@ struct ServicesTests {
         // Then
         #expect(response.threadId == "t-1")
         #expect(response.status == .inProgress)
+        #expect(response.messages.count == 1)
+        #expect(response.messages.first?.role == .assistant)
+        #expect(response.messages.first?.content == "hi")
     }
 
     @Test
     func goalServiceStartHitsPostGoalStartWithDate() async throws {
         // Given
         let mock = MockHTTPClient()
-        let body = #"{"threadId":"t-1","status":"in_progress","message":"hi"}"#
+        let body = #"{"threadId":"t-1","status":"in_progress","messages":[{"role":"assistant","content":"hi"}]}"#
         await mock.enqueue(
             status: 200,
             body: Data(body.utf8),

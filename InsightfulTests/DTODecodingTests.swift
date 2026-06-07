@@ -71,6 +71,63 @@ struct DTODecodingTests {
         #expect(context.injuriesOrLimitations == nil)
     }
 
+    // MARK: - GoalStartResponse
+
+    @Test
+    func goalStartResponseWhenNewThreadDecodesOpenerOnly() throws {
+        // Given
+        let json = """
+        {
+          "threadId": "t-1",
+          "status": "in_progress",
+          "messages": [
+            { "role": "assistant", "content": "Welcome — what are you working toward?" }
+          ]
+        }
+        """
+
+        // When
+        let response = try JSONCoding.decoder.decode(
+            GoalStartResponse.self,
+            from: Data(json.utf8)
+        )
+
+        // Then
+        #expect(response.threadId == "t-1")
+        #expect(response.status == .inProgress)
+        #expect(response.messages.count == 1)
+        #expect(response.messages[0].role == .assistant)
+        #expect(response.messages[0].content == "Welcome — what are you working toward?")
+    }
+
+    @Test
+    func goalStartResponseWhenResumingDecodesFullTranscript() throws {
+        // Given
+        let json = """
+        {
+          "threadId": "t-resumed",
+          "status": "in_progress",
+          "messages": [
+            { "role": "assistant", "content": "Welcome — what are you working toward?" },
+            { "role": "user", "content": "Sub-3 marathon" },
+            { "role": "assistant", "content": "By when?" }
+          ]
+        }
+        """
+
+        // When
+        let response = try JSONCoding.decoder.decode(
+            GoalStartResponse.self,
+            from: Data(json.utf8)
+        )
+
+        // Then
+        #expect(response.messages.count == 3)
+        #expect(response.messages[1].role == .user)
+        #expect(response.messages[1].content == "Sub-3 marathon")
+        #expect(response.messages[2].role == .assistant)
+    }
+
     // MARK: - GoalMessageResponse
 
     @Test

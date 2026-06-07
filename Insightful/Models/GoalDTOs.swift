@@ -16,7 +16,17 @@ struct GoalStartRequest: Encodable, Equatable {
 struct GoalStartResponse: Decodable, Equatable {
     let threadId: String
     let status: GoalStatus
-    let message: String
+    let messages: [GoalMessage]
+}
+
+enum GoalMessageRole: String, Decodable, Equatable {
+    case user
+    case assistant
+}
+
+struct GoalMessage: Decodable, Equatable {
+    let role: GoalMessageRole
+    let content: String
 }
 
 // MARK: - /goal/message

@@ -48,15 +48,14 @@ final class GoalSetupViewModel {
         self.threadId = nil
     }
 
-    /// Opens the goal-setup thread and appends the agent's first message.
+    /// Opens or resumes the goal-setup thread and seeds the transcript with
+    /// every message the server returns.
     ///
     /// Safe to call multiple times — the second call no-ops once a
     /// ``threadId`` exists, so views can attach this to `.task` without
-    /// worrying about re-entry on re-renders.
-    ///
-    /// If the agent immediately reports ``GoalStatus/goalComplete`` (because
-    /// the user already had context that the server resurfaced), `onComplete`
-    /// fires after the opening message is seeded.
+    /// worrying about re-entry on re-renders. The server's response is
+    /// idempotent: a fresh thread returns just the opener; an in-progress
+    /// thread returns the opener plus every persisted turn.
     func start() async {
         guard threadId == nil else { return }
         isSending = true
@@ -65,9 +64,8 @@ final class GoalSetupViewModel {
         do {
             let response = try await goalService.start(date: LocalCalendarDate.string(from: Date()))
             threadId = response.threadId
-            messages.append(ChatMessage(id: UUID(), role: .assistant, content: response.message))
-            if response.status == .goalComplete {
-                onComplete()
+            messages = response.messages.map { message in
+                ChatMessage(id: UUID(), role: message.role.chatRole, content: message.content)
             }
         } catch {
             errorMessage = "We couldn't reach the server. Try again."

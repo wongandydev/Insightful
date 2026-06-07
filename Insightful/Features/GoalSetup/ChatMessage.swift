@@ -23,3 +23,14 @@ struct ChatMessage: Identifiable, Equatable, Sendable {
         self.content = content
     }
 }
+
+extension GoalMessageRole {
+    /// Maps the wire-level role to the UI-level role rendered in the
+    /// transcript.
+    var chatRole: ChatMessage.Role {
+        switch self {
+        case .user: return .user
+        case .assistant: return .assistant
+        }
+    }
+}
