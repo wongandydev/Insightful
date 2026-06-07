@@ -15,13 +15,14 @@ import Observation
 @MainActor
 @Observable
 final class GoalSetupViewModel {
-    /// Ordered transcript shown by ``GoalSetupView``. A user turn is only
-    /// appended once its send round-trip succeeds — failed sends leave the
-    /// transcript untouched and preserve ``userInput`` for retry.
+    /// Ordered transcript of the conversation. A user turn is appended
+    /// optimistically the moment ``send()`` begins so the bubble shows
+    /// immediately; a failed send removes it and restores ``userInput`` for
+    /// retry.
     private(set) var messages: [ChatMessage]
-    /// Two-way bound to the text field. Cleared only after ``send()``
-    /// succeeds; a failed send leaves the text in place so the user does not
-    /// have to retype.
+    /// Two-way bound to the text field. Cleared when ``send()`` enqueues the
+    /// optimistic user bubble; restored to its prior value if the send fails
+    /// so the user does not have to retype.
     var userInput: String
     /// `true` while a `/goal/start` or `/goal/message` request is in flight.
     /// The view disables the send button on this.
@@ -72,19 +73,24 @@ final class GoalSetupViewModel {
         }
     }
 
-    /// Sends the current ``userInput`` to the agent and appends both the user
-    /// turn and the agent's reply.
+    /// Sends the current ``userInput`` to the agent.
     ///
+    /// The user bubble is appended to ``messages`` and ``userInput`` is
+    /// cleared before the network call so the composer feels responsive;
+    /// the assistant's reply is appended when the round-trip succeeds.
     /// No-ops when the trimmed input is empty or when ``start()`` has not
-    /// yet produced a ``threadId``. On a successful round-trip the user
-    /// message and the assistant's reply are both appended to ``messages``
-    /// and ``userInput`` is cleared. On failure ``userInput`` is left in
-    /// place so the user can retry without retyping.
+    /// yet produced a ``threadId``. On failure the optimistic user bubble
+    /// is removed and ``userInput`` is restored so the user can retry
+    /// without retyping.
     func send() async {
         let trimmed = userInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         guard let threadId else { return }
 
+        let optimisticId = UUID()
+        let preservedInput = userInput
+        messages.append(ChatMessage(id: optimisticId, role: .user, content: trimmed))
+        userInput = ""
         isSending = true
         errorMessage = nil
         defer { isSending = false }
@@ -94,13 +100,13 @@ final class GoalSetupViewModel {
                 message: trimmed,
                 date: LocalCalendarDate.string(from: Date())
             )
-            messages.append(ChatMessage(id: UUID(), role: .user, content: trimmed))
             messages.append(ChatMessage(id: UUID(), role: .assistant, content: response.message))
-            userInput = ""
             if response.status == .goalComplete {
                 onComplete()
             }
         } catch {
+            messages.removeAll { $0.id == optimisticId }
+            userInput = preservedInput
             errorMessage = "We couldn't reach the server. Try again."
         }
     }

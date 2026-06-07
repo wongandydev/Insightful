@@ -38,17 +38,27 @@ struct GoalSetupView: View {
                         }
                         .padding(.horizontal)
                     }
+                    Color.clear
+                        .frame(height: 1)
+                        .id(bottomAnchor)
                 }
                 .padding(.vertical, 16)
                 .padding(.horizontal, 12)
             }
-            .onChange(of: viewModel.messages.count) {
-                if let last = viewModel.messages.last {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        proxy.scrollTo(last.id, anchor: .bottom)
-                    }
-                }
+            .scrollDismissesKeyboard(.interactively)
+            .onChange(of: viewModel.messages.count) { scrollToBottom(proxy) }
+            .onChange(of: viewModel.isSending) { scrollToBottom(proxy) }
+            .onChange(of: inputFocused) { _, focused in
+                if focused { scrollToBottom(proxy) }
             }
+        }
+    }
+
+    private let bottomAnchor = "bottom"
+
+    private func scrollToBottom(_ proxy: ScrollViewProxy) {
+        withAnimation(.easeOut(duration: 0.2)) {
+            proxy.scrollTo(bottomAnchor, anchor: .bottom)
         }
     }
 
