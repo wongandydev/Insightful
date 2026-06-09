@@ -67,7 +67,13 @@ struct DailyInsightViewModelTests {
     }
 
     private func makeInsight(text: String = "default text") -> Insight {
-        Insight(insightText: text, alerts: [], chartsToShow: [], recommendedActions: [])
+        Insight(
+            insightText: text,
+            alerts: [],
+            chartsToShow: [],
+            recommendedActions: [],
+            progress: nil
+        )
     }
 
     private func isErrorPhase(_ phase: DailyInsightViewModel.Phase) -> Bool {

@@ -245,7 +245,13 @@ struct DTODecodingTests {
             "insightText": "Recovery is trending up.",
             "alerts": ["sleep dipped Tuesday"],
             "chartsToShow": ["heartRateVariabilitySDNN", "restingHeartRate"],
-            "recommendedActions": ["aim for 7.5h tonight"]
+            "recommendedActions": ["aim for 7.5h tonight"],
+            "progress": {
+              "daysUntilTarget": 130,
+              "subgoals": [
+                { "text": "Sub-3 marathon", "target": "3h" }
+              ]
+            }
           }
         }
         """
@@ -261,6 +267,36 @@ struct DTODecodingTests {
         #expect(response.insight.insightText == "Recovery is trending up.")
         #expect(response.insight.chartsToShow == ["heartRateVariabilitySDNN", "restingHeartRate"])
         #expect(response.insight.recommendedActions == ["aim for 7.5h tonight"])
+        #expect(response.insight.progress?.daysUntilTarget == 130)
+        #expect(response.insight.progress?.subgoals == [
+            InsightSubgoalProgress(text: "Sub-3 marathon", target: "3h")
+        ])
+    }
+
+    @Test
+    func insightResponseWhenProgressIsNullDecodesAsNil() throws {
+        // Given
+        let json = """
+        {
+          "cached": true,
+          "insight": {
+            "insightText": "Steady.",
+            "alerts": [],
+            "chartsToShow": [],
+            "recommendedActions": [],
+            "progress": null
+          }
+        }
+        """
+
+        // When
+        let response = try JSONCoding.decoder.decode(
+            InsightResponse.self,
+            from: Data(json.utf8)
+        )
+
+        // Then
+        #expect(response.insight.progress == nil)
     }
 
     // MARK: - LocalCalendarDate
