@@ -1,19 +1,21 @@
 import SwiftUI
 
-/// Bare-bones settings sheet. Two actions: re-do goal setup, or sign out
-/// (which the parent uses to trigger a full cold-start with a fresh
-/// anonymous user).
+/// Bare-bones settings sheet. Surfaces the saved goal (with a path to refine
+/// it) and a sign-out action that the parent uses to trigger a full
+/// cold-start with a fresh anonymous user.
 struct SettingsView: View {
+    let goalContext: GoalContext?
     @State private var viewModel: SettingsViewModel
     @State private var showSignOutConfirmation = false
-    @State private var showResetGoalConfirmation = false
     @Environment(\.dismiss) private var dismiss
 
     init(
         authService: AuthService,
+        goalContext: GoalContext?,
         onSignedOut: @escaping () -> Void,
         onResetGoal: @escaping () -> Void
     ) {
+        self.goalContext = goalContext
         _viewModel = State(initialValue: SettingsViewModel(
             authService: authService,
             onSignedOut: onSignedOut,
@@ -24,11 +26,27 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("Goal") {
-                    Button("Re-do goal setup") {
-                        showResetGoalConfirmation = true
+                if let goalContext {
+                    Section("Goal") {
+                        NavigationLink {
+                            GoalSummaryView(
+                                context: goalContext,
+                                onContinue: nil,
+                                onEditGoal: { viewModel.resetGoal() }
+                            )
+                            .navigationTitle("Your goal")
+                            .navigationBarTitleDisplayMode(.inline)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("View / edit my goal")
+                                Text(goalContext.goalSummary)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                            }
+                        }
+                        .disabled(viewModel.isSigningOut)
                     }
-                    .disabled(viewModel.isSigningOut)
                 }
                 Section("Account") {
                     Button(role: .destructive) {
@@ -72,18 +90,6 @@ struct SettingsView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("You'll be signed in as a fresh user the next time the app opens.")
-            }
-            .confirmationDialog(
-                "Re-do goal setup?",
-                isPresented: $showResetGoalConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Re-do goal setup", role: .destructive) {
-                    viewModel.resetGoal()
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("You'll go through the goal-setup conversation again. Your current goal stays saved in the meantime.")
             }
         }
     }

@@ -15,6 +15,12 @@ enum RootRoute: Equatable, Sendable {
     /// conversation.
     case goalSetup
 
+    /// Read-only review of the agent's interpretation of the user's goal.
+    /// Reached immediately after a successful goal-setup conversation and
+    /// before the HealthKit permission prompt. The associated ``GoalContext``
+    /// is what was returned by the agent on ``GoalStatus/goalComplete``.
+    case goalSummary(GoalContext)
+
     /// Goal context is set, but we have not yet asked the user for HealthKit
     /// permission this install. Show the explainer + system prompt.
     case healthKitPermission

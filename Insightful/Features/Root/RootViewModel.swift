@@ -17,6 +17,12 @@ private let logger = Logger(subsystem: "com.andy.Insightful", category: "RootVie
 final class RootViewModel {
     /// The currently-displayed top-level screen. Starts at ``RootRoute/launching``.
     private(set) var route: RootRoute
+    /// The most recent ``GoalContext`` handed up from goal setup. Kept so the
+    /// summary screen can re-render after re-entry and so downstream features
+    /// (e.g. the goal-aware HealthKit rationale) can read it without
+    /// re-fetching. `nil` until the user finishes their first goal-setup
+    /// conversation this launch.
+    private(set) var goalContext: GoalContext?
 
     private let authService: AuthService
     private let userService: any UserServicing
@@ -34,6 +40,7 @@ final class RootViewModel {
         self.goalService = goalService
         self.userDefaults = userDefaults
         self.route = .launching
+        self.goalContext = nil
     }
 
     /// Runs the cold-start sequence and sets ``route`` accordingly.
@@ -62,6 +69,7 @@ final class RootViewModel {
 
             logger.info("start: step 3/3 — goal context")
             let context = try await goalService.getContext()
+            goalContext = context.context
 
             let next = decideRoute(hasGoalContext: context.hasContext)
             logger.info("start: success → \(String(describing: next), privacy: .public)")
@@ -74,12 +82,42 @@ final class RootViewModel {
     }
 
     /// Called by ``GoalSetupViewModel`` when the agent reports
-    /// ``GoalStatus/goalComplete``. Defers the next-screen choice to
+    /// ``GoalStatus/goalComplete``. Stores the structured ``GoalContext`` so
+    /// downstream views can render it without a refetch, then routes to
+    /// ``RootRoute/goalSummary(_:)`` for a read-only review.
+    func goalSetupCompleted(context: GoalContext) {
+        goalContext = context
+        route = .goalSummary(context)
+    }
+
+    /// Called by ``GoalSummaryView`` when the user accepts the agent's
+    /// interpretation. Defers the next-screen choice to
     /// ``decideRoute(hasGoalContext:)`` so a returning user who already
     /// granted HealthKit lands directly on ``RootRoute/dailyInsight``
     /// instead of seeing the permission explainer again.
-    func goalSetupCompleted() {
+    func goalSummaryConfirmed() {
         route = decideRoute(hasGoalContext: true)
+    }
+
+    /// Called by ``GoalSummaryView`` when the user rejects the agent's
+    /// interpretation and wants to refine the conversation. The cached
+    /// ``goalContext`` is preserved on purpose — Settings reads it to render
+    /// the "View / edit my goal" entry while the refinement is in progress,
+    /// and ``goalSetupCompleted(context:)`` overwrites it cleanly when the
+    /// agent returns the updated context.
+    func goalSummaryRequestedEdit() {
+        route = .goalSetup
+    }
+
+    /// Called by ``GoalSetupView``'s Cancel button when the user backs out
+    /// of a refinement chat without letting the agent finish. The cached
+    /// ``goalContext`` is intact, so we route back to whatever the user
+    /// would have seen had they never entered refinement. The backend
+    /// thread that `/goal/start` reopened stays `active` (orphan) until the
+    /// stale-thread cleanup job sweeps it — `user_context` is untouched, so
+    /// the daily insight keeps using the prior goal.
+    func cancelGoalRefinement() {
+        route = decideRoute(hasGoalContext: goalContext != nil)
     }
 
     /// Called by ``HealthKitPermissionViewModel`` when the permission sheet

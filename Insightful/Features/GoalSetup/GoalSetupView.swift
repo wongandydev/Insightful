@@ -3,23 +3,67 @@ import SwiftUI
 /// Conversational goal-setup screen. Owns a ``GoalSetupViewModel`` and
 /// renders the transcript plus a single text-entry composer at the bottom.
 struct GoalSetupView: View {
+    private let onCancel: (() -> Void)?
     @State private var viewModel: GoalSetupViewModel
     @FocusState private var inputFocused: Bool
 
-    init(goalService: any GoalServicing, onComplete: @escaping () -> Void) {
+    init(
+        goalService: any GoalServicing,
+        onComplete: @escaping (GoalContext) -> Void,
+        onCancel: (() -> Void)?
+    ) {
+        self.onCancel = onCancel
         _viewModel = State(initialValue: GoalSetupViewModel(
             goalService: goalService,
+            finalizingDelay: .milliseconds(800),
             onComplete: onComplete
         ))
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            transcript
-            errorBanner
-            composer
+        NavigationStack {
+            VStack(spacing: 0) {
+                resumedBanner
+                transcript
+                errorBanner
+                composer
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if let onCancel {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Cancel", action: onCancel)
+                            .disabled(viewModel.isFinalizing)
+                    }
+                }
+            }
         }
         .task { await viewModel.start() }
+        .overlay {
+            if viewModel.isFinalizing {
+                finalizingOverlay
+            }
+        }
+    }
+
+    private var finalizingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.35).ignoresSafeArea()
+            VStack(spacing: 12) {
+                ProgressView()
+                    .controlSize(.large)
+                    .tint(.white)
+                Text("Finalizing your goal…")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+            }
+            .padding(24)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.ultraThinMaterial)
+            )
+        }
+        .transition(.opacity)
     }
 
     private var transcript: some View {
@@ -59,6 +103,21 @@ struct GoalSetupView: View {
     private func scrollToBottom(_ proxy: ScrollViewProxy) {
         withAnimation(.easeOut(duration: 0.2)) {
             proxy.scrollTo(bottomAnchor, anchor: .bottom)
+        }
+    }
+
+    @ViewBuilder
+    private var resumedBanner: some View {
+        if viewModel.wasResumed {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.uturn.left")
+                Text("Picking up where you left off")
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+            .background(Color(.secondarySystemBackground))
         }
     }
 

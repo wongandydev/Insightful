@@ -27,7 +27,7 @@ struct RootViewModelTests {
     }
 
     @Test
-    func startWhenContextExistsButHealthKitNotYetAskedRoutesToPermission() async throws {
+    func startWhenContextExistsButHealthKitNotYetAskedRoutesToPermissionAndStoresContext() async throws {
         // Given
         let goalService = FakeGoalService()
         await goalService.programGetContext(.success(populatedGoalContextResponse))
@@ -42,6 +42,25 @@ struct RootViewModelTests {
 
         // Then
         #expect(viewModel.route == .healthKitPermission)
+        #expect(viewModel.goalContext == populatedGoalContextResponse.context)
+    }
+
+    @Test
+    func startWhenNoCachedGoalContextLeavesGoalContextNil() async throws {
+        // Given
+        let goalService = FakeGoalService()
+        await goalService.programGetContext(.success(GoalContextResponse(hasContext: false, context: nil)))
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let viewModel = await makeViewModel(
+            goalService: goalService,
+            userDefaults: defaults
+        )
+
+        // When
+        await viewModel.start()
+
+        // Then
+        #expect(viewModel.goalContext == nil)
     }
 
     @Test
@@ -157,16 +176,75 @@ struct RootViewModelTests {
     // MARK: - Child-feature transitions
 
     @Test
-    func goalSetupCompletedRoutesToHealthKitPermission() async {
+    func goalSetupCompletedRoutesToGoalSummaryAndStoresContext() async {
+        // Given
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let viewModel = await makeViewModel(userDefaults: defaults)
+        let context = populatedGoalContextResponse.context!
+
+        // When
+        viewModel.goalSetupCompleted(context: context)
+
+        // Then
+        #expect(viewModel.route == .goalSummary(context))
+        #expect(viewModel.goalContext == context)
+    }
+
+    @Test
+    func goalSummaryConfirmedWhenHealthKitNotYetAskedRoutesToPermission() async {
         // Given
         let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
         let viewModel = await makeViewModel(userDefaults: defaults)
 
         // When
-        viewModel.goalSetupCompleted()
+        viewModel.goalSummaryConfirmed()
 
         // Then
         #expect(viewModel.route == .healthKitPermission)
+    }
+
+    @Test
+    func goalSummaryConfirmedWhenHealthKitAlreadyAskedRoutesToDailyInsight() async {
+        // Given
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: true)
+        let viewModel = await makeViewModel(userDefaults: defaults)
+
+        // When
+        viewModel.goalSummaryConfirmed()
+
+        // Then
+        #expect(viewModel.route == .dailyInsight)
+    }
+
+    @Test
+    func goalSummaryRequestedEditPreservesContextAndRoutesToGoalSetup() async {
+        // Given
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let viewModel = await makeViewModel(userDefaults: defaults)
+        let context = populatedGoalContextResponse.context!
+        viewModel.goalSetupCompleted(context: context)
+
+        // When
+        viewModel.goalSummaryRequestedEdit()
+
+        // Then
+        #expect(viewModel.route == .goalSetup)
+        #expect(viewModel.goalContext == context)
+    }
+
+    @Test
+    func cancelGoalRefinementWhenContextCachedRoutesBackToSteadyState() async {
+        // Given
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: true)
+        let viewModel = await makeViewModel(userDefaults: defaults)
+        viewModel.goalSetupCompleted(context: populatedGoalContextResponse.context!)
+
+        // When
+        viewModel.cancelGoalRefinement()
+
+        // Then
+        #expect(viewModel.route == .dailyInsight)
+        #expect(viewModel.goalContext != nil)
     }
 
     @Test

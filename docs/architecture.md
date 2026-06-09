@@ -11,7 +11,7 @@
 Keep flat and obvious. Folders:
 - `App/` — `InsightfulApp.swift`, `AppDependencies.swift`, root scene
 - `Networking/` — `APIClient`, `APIRequest`, `APIError`, `Endpoints`, `HTTPClient`, `JSONCoding`
-- `Features/<Feature>/` — view + view model + feature-local value types (e.g. `ChatMessage`, `RootRoute`)
+- `Features/<Feature>/` — view + view model + feature-local value types (e.g. `ChatMessage`, `RootRoute`). `GoalSummary/` is the one feature without a view model — it's purely presentational and is reached from two surfaces (the post-setup route and a Settings drill-down), so it takes its callbacks directly via `init`. `onContinue` is optional so Settings can present it without the onboarding "continue" button.
 - `Services/` — `AuthService`, `UserService`, `GoalService`, `InsightService`, `HealthKitService`
 - `Models/` — DTOs decoded from the backend
 

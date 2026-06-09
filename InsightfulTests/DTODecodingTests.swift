@@ -80,6 +80,7 @@ struct DTODecodingTests {
         {
           "threadId": "t-1",
           "status": "in_progress",
+          "mode": "created",
           "messages": [
             { "role": "assistant", "content": "Welcome — what are you working toward?" }
           ]
@@ -95,18 +96,20 @@ struct DTODecodingTests {
         // Then
         #expect(response.threadId == "t-1")
         #expect(response.status == .inProgress)
+        #expect(response.mode == .created)
         #expect(response.messages.count == 1)
         #expect(response.messages[0].role == .assistant)
         #expect(response.messages[0].content == "Welcome — what are you working toward?")
     }
 
     @Test
-    func goalStartResponseWhenResumingDecodesFullTranscript() throws {
+    func goalStartResponseWhenResumingDecodesFullTranscriptAndMode() throws {
         // Given
         let json = """
         {
           "threadId": "t-resumed",
           "status": "in_progress",
+          "mode": "resumed",
           "messages": [
             { "role": "assistant", "content": "Welcome — what are you working toward?" },
             { "role": "user", "content": "Sub-3 marathon" },
@@ -122,10 +125,37 @@ struct DTODecodingTests {
         )
 
         // Then
+        #expect(response.mode == .resumed)
         #expect(response.messages.count == 3)
         #expect(response.messages[1].role == .user)
         #expect(response.messages[1].content == "Sub-3 marathon")
         #expect(response.messages[2].role == .assistant)
+    }
+
+    @Test
+    func goalStartResponseWhenRefinedDecodesMode() throws {
+        // Given
+        let json = """
+        {
+          "threadId": "t-refined",
+          "status": "in_progress",
+          "mode": "refined",
+          "messages": [
+            { "role": "assistant", "content": "Welcome — what are you working toward?" },
+            { "role": "user", "content": "Sub-3 marathon" },
+            { "role": "assistant", "content": "Welcome back. What would you like to refine about your goal?" }
+          ]
+        }
+        """
+
+        // When
+        let response = try JSONCoding.decoder.decode(
+            GoalStartResponse.self,
+            from: Data(json.utf8)
+        )
+
+        // Then
+        #expect(response.mode == .refined)
     }
 
     // MARK: - GoalMessageResponse

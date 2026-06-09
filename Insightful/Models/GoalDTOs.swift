@@ -13,9 +13,20 @@ struct GoalStartRequest: Encodable, Equatable {
     let date: String
 }
 
+/// Which branch the server took when handling `/goal/start`. iOS uses this
+/// to decide UI cues — `resumed` triggers the "Picking up where you left off"
+/// banner; `refined` already has the synthetic refinement prompt at the
+/// bottom of the transcript; `created` shows nothing extra.
+enum GoalStartMode: String, Decodable, Equatable {
+    case created
+    case resumed
+    case refined
+}
+
 struct GoalStartResponse: Decodable, Equatable {
     let threadId: String
     let status: GoalStatus
+    let mode: GoalStartMode
     let messages: [GoalMessage]
 }
 

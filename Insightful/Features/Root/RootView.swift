@@ -42,7 +42,16 @@ struct RootView: View {
             case .goalSetup:
                 GoalSetupView(
                     goalService: goalService,
-                    onComplete: { viewModel.goalSetupCompleted() }
+                    onComplete: { context in viewModel.goalSetupCompleted(context: context) },
+                    onCancel: viewModel.goalContext != nil
+                        ? { viewModel.cancelGoalRefinement() }
+                        : nil
+                )
+            case .goalSummary(let context):
+                GoalSummaryView(
+                    context: context,
+                    onContinue: { viewModel.goalSummaryConfirmed() },
+                    onEditGoal: { viewModel.goalSummaryRequestedEdit() }
                 )
             case .healthKitPermission:
                 HealthKitPermissionView(
@@ -66,6 +75,7 @@ struct RootView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView(
                 authService: authService,
+                goalContext: viewModel.goalContext,
                 onSignedOut: {
                     showSettings = false
                     Task { await viewModel.start() }

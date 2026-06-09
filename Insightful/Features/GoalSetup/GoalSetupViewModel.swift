@@ -7,11 +7,12 @@ import Observation
 /// that returns a thread identifier and the agent's opening question. Each
 /// subsequent user reply is sent through
 /// ``GoalServicing/sendMessage(threadId:message:date:)`` until the agent
-/// returns ``GoalStatus/goalComplete``, at which point the view model calls
-/// `onComplete` so the router can transition away.
+/// returns ``GoalStatus/goalComplete``, at which point the view model briefly
+/// shows ``isFinalizing`` and then calls `onComplete` with the structured
+/// ``GoalContext`` so the router can transition to the summary screen.
 ///
 /// `@MainActor @Observable` because the view reads ``messages``, ``userInput``,
-/// ``isSending``, and ``errorMessage`` directly.
+/// ``isSending``, ``isFinalizing``, and ``errorMessage`` directly.
 @MainActor
 @Observable
 final class GoalSetupViewModel {
@@ -27,6 +28,15 @@ final class GoalSetupViewModel {
     /// `true` while a `/goal/start` or `/goal/message` request is in flight.
     /// The view disables the send button on this.
     private(set) var isSending: Bool
+    /// `true` when the most recent ``start()`` resumed an existing
+    /// in-progress thread (server returned ``GoalStartMode/resumed``). The
+    /// view renders a "Picking up where you left off" banner so the user
+    /// knows why the transcript is already populated.
+    private(set) var wasResumed: Bool
+    /// `true` for the brief window between receiving the agent's final reply
+    /// and handing control to the router. The view shows a "Finalizing your
+    /// goal…" overlay so the transition does not feel abrupt.
+    private(set) var isFinalizing: Bool
     /// User-facing error string. Reset to `nil` at the start of every
     /// network call so a previous failure does not stick around after a
     /// successful retry.
@@ -37,14 +47,22 @@ final class GoalSetupViewModel {
     private(set) var threadId: String?
 
     private let goalService: any GoalServicing
-    private let onComplete: () -> Void
+    private let onComplete: (GoalContext) -> Void
+    private let finalizingDelay: Duration
 
-    init(goalService: any GoalServicing, onComplete: @escaping () -> Void) {
+    init(
+        goalService: any GoalServicing,
+        finalizingDelay: Duration,
+        onComplete: @escaping (GoalContext) -> Void
+    ) {
         self.goalService = goalService
+        self.finalizingDelay = finalizingDelay
         self.onComplete = onComplete
         self.messages = []
         self.userInput = ""
         self.isSending = false
+        self.wasResumed = false
+        self.isFinalizing = false
         self.errorMessage = nil
         self.threadId = nil
     }
@@ -65,6 +83,7 @@ final class GoalSetupViewModel {
         do {
             let response = try await goalService.start(date: LocalCalendarDate.string(from: Date()))
             threadId = response.threadId
+            wasResumed = response.mode == .resumed
             messages = response.messages.map { message in
                 ChatMessage(id: UUID(), role: message.role.chatRole, content: message.content)
             }
@@ -92,6 +111,7 @@ final class GoalSetupViewModel {
         messages.append(ChatMessage(id: optimisticId, role: .user, content: trimmed))
         userInput = ""
         isSending = true
+        wasResumed = false
         errorMessage = nil
         defer { isSending = false }
         do {
@@ -101,8 +121,10 @@ final class GoalSetupViewModel {
                 date: LocalCalendarDate.string(from: Date())
             )
             messages.append(ChatMessage(id: UUID(), role: .assistant, content: response.message))
-            if response.status == .goalComplete {
-                onComplete()
+            if response.status == .goalComplete, let context = response.context {
+                isFinalizing = true
+                try? await Task.sleep(for: finalizingDelay)
+                onComplete(context)
             }
         } catch {
             messages.removeAll { $0.id == optimisticId }

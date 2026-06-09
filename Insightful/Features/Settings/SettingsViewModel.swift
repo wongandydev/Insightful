@@ -52,7 +52,8 @@ final class SettingsViewModel {
 
     /// Triggers a re-route to the goal-setup screen without touching the
     /// current session. The existing goal context row stays in the
-    /// database — the agent treats a new `/goal/start` as a fresh thread.
+    /// database; `/goal/start` reopens the most recent completed thread so
+    /// the agent picks up in refinement mode rather than from scratch.
     func resetGoal() {
         onResetGoal()
     }

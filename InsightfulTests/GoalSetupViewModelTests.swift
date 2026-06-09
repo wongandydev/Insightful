@@ -15,6 +15,7 @@ struct GoalSetupViewModelTests {
         await goalService.programStart(.success(GoalStartResponse(
             threadId: "thread-1",
             status: .inProgress,
+            mode: .created,
             messages: [GoalMessage(role: .assistant, content: "What's your goal?")]
         )))
         let viewModel = makeViewModel(goalService: goalService)
@@ -27,16 +28,18 @@ struct GoalSetupViewModelTests {
         #expect(viewModel.messages.count == 1)
         #expect(viewModel.messages.first?.role == .assistant)
         #expect(viewModel.messages.first?.content == "What's your goal?")
+        #expect(viewModel.wasResumed == false)
         #expect(viewModel.errorMessage == nil)
     }
 
     @Test
-    func startWhenServerReturnsExistingTranscriptSeedsAllTurns() async {
+    func startWhenModeIsResumedFlagsWasResumed() async {
         // Given
         let goalService = FakeGoalService()
         await goalService.programStart(.success(GoalStartResponse(
             threadId: "thread-existing",
             status: .inProgress,
+            mode: .resumed,
             messages: [
                 GoalMessage(role: .assistant, content: "What's your goal?"),
                 GoalMessage(role: .user, content: "Run a sub-3 marathon"),
@@ -51,12 +54,31 @@ struct GoalSetupViewModelTests {
         // Then
         #expect(viewModel.threadId == "thread-existing")
         #expect(viewModel.messages.count == 3)
-        #expect(viewModel.messages[0].role == .assistant)
-        #expect(viewModel.messages[0].content == "What's your goal?")
-        #expect(viewModel.messages[1].role == .user)
-        #expect(viewModel.messages[1].content == "Run a sub-3 marathon")
-        #expect(viewModel.messages[2].role == .assistant)
-        #expect(viewModel.messages[2].content == "When do you want to be ready by?")
+        #expect(viewModel.wasResumed)
+    }
+
+    @Test
+    func startWhenModeIsRefinedDoesNotFlagWasResumed() async {
+        // Given — refine mode appends the synthetic refinement opener at the
+        // bottom; the resumed banner would be redundant noise on top of it.
+        let goalService = FakeGoalService()
+        await goalService.programStart(.success(GoalStartResponse(
+            threadId: "thread-reopened",
+            status: .inProgress,
+            mode: .refined,
+            messages: [
+                GoalMessage(role: .assistant, content: "What's your goal?"),
+                GoalMessage(role: .user, content: "Run a sub-3 marathon"),
+                GoalMessage(role: .assistant, content: "Welcome back. What would you like to refine about your goal?"),
+            ]
+        )))
+        let viewModel = makeViewModel(goalService: goalService)
+
+        // When
+        await viewModel.start()
+
+        // Then
+        #expect(viewModel.wasResumed == false)
     }
 
     // MARK: - send()
@@ -68,6 +90,7 @@ struct GoalSetupViewModelTests {
         await goalService.programStart(.success(GoalStartResponse(
             threadId: "thread-1",
             status: .inProgress,
+            mode: .created,
             messages: [GoalMessage(role: .assistant, content: "What's your goal?")]
         )))
         await goalService.programSendMessage(.success(GoalMessageResponse(
@@ -93,12 +116,45 @@ struct GoalSetupViewModelTests {
     }
 
     @Test
-    func sendWhenAgentReturnsGoalCompleteCallsOnComplete() async {
+    func sendWhenAgentReturnsGoalCompleteWithContextHandsContextToOnComplete() async {
         // Given
         let goalService = FakeGoalService()
         await goalService.programStart(.success(GoalStartResponse(
             threadId: "thread-1",
             status: .inProgress,
+            mode: .created,
+            messages: [GoalMessage(role: .assistant, content: "Opening question")]
+        )))
+        let context = makeGoalContext(summary: "Run a sub-3 marathon")
+        await goalService.programSendMessage(.success(GoalMessageResponse(
+            status: .goalComplete,
+            message: "Great, you're set.",
+            context: context
+        )))
+        var receivedContexts: [GoalContext] = []
+        let viewModel = makeViewModel(
+            goalService: goalService,
+            onComplete: { receivedContexts.append($0) }
+        )
+        await viewModel.start()
+        viewModel.userInput = "Done"
+
+        // When
+        await viewModel.send()
+
+        // Then
+        #expect(receivedContexts == [context])
+        #expect(viewModel.isFinalizing)
+    }
+
+    @Test
+    func sendWhenAgentReturnsGoalCompleteWithoutContextDoesNotCallOnComplete() async {
+        // Given
+        let goalService = FakeGoalService()
+        await goalService.programStart(.success(GoalStartResponse(
+            threadId: "thread-1",
+            status: .inProgress,
+            mode: .created,
             messages: [GoalMessage(role: .assistant, content: "Opening question")]
         )))
         await goalService.programSendMessage(.success(GoalMessageResponse(
@@ -109,7 +165,7 @@ struct GoalSetupViewModelTests {
         var completedCount = 0
         let viewModel = makeViewModel(
             goalService: goalService,
-            onComplete: { completedCount += 1 }
+            onComplete: { _ in completedCount += 1 }
         )
         await viewModel.start()
         viewModel.userInput = "Done"
@@ -118,7 +174,8 @@ struct GoalSetupViewModelTests {
         await viewModel.send()
 
         // Then
-        #expect(completedCount == 1)
+        #expect(completedCount == 0)
+        #expect(viewModel.isFinalizing == false)
     }
 
     @Test
@@ -128,6 +185,7 @@ struct GoalSetupViewModelTests {
         await goalService.programStart(.success(GoalStartResponse(
             threadId: "thread-1",
             status: .inProgress,
+            mode: .created,
             messages: [GoalMessage(role: .assistant, content: "Opening question")]
         )))
         await goalService.programSendMessage(.failure(FakeError.network))
@@ -151,6 +209,7 @@ struct GoalSetupViewModelTests {
         await goalService.programStart(.success(GoalStartResponse(
             threadId: "thread-1",
             status: .inProgress,
+            mode: .created,
             messages: [GoalMessage(role: .assistant, content: "Opening question")]
         )))
         let viewModel = makeViewModel(goalService: goalService)
@@ -170,8 +229,29 @@ struct GoalSetupViewModelTests {
 
     private func makeViewModel(
         goalService: any GoalServicing,
-        onComplete: @escaping @MainActor () -> Void = {}
+        onComplete: @escaping @MainActor (GoalContext) -> Void = { _ in }
     ) -> GoalSetupViewModel {
-        GoalSetupViewModel(goalService: goalService, onComplete: onComplete)
+        GoalSetupViewModel(
+            goalService: goalService,
+            finalizingDelay: .zero,
+            onComplete: onComplete
+        )
+    }
+
+    private func makeGoalContext(summary: String) -> GoalContext {
+        GoalContext(
+            goalType: .enduranceEvent,
+            goalSummary: summary,
+            targetDate: "2026-12-01",
+            motivation: "first race",
+            currentState: "training 6h/wk",
+            biggestConcern: "swim",
+            lifestyle: "office job",
+            previouslyTried: nil,
+            injuriesOrLimitations: nil,
+            priorityMetrics: ["restingHeartRate", "sleepHours"],
+            sportsOrActivities: ["running"],
+            subGoals: ["long run 30km", "weekly volume 60km"]
+        )
     }
 }
