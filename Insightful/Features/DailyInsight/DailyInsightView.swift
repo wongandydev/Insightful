@@ -66,7 +66,7 @@ private struct LoadingState: View {
     var body: some View {
         VStack(spacing: 16) {
             ProgressView()
-            Text("Crunching today's data…")
+            Text("Crunching your daily insight data…")
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
