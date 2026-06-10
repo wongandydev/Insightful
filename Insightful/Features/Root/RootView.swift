@@ -12,7 +12,6 @@ struct RootView: View {
     private let healthKitService: HealthKitService
 
     @State private var viewModel: RootViewModel
-    @State private var showSettings = false
 
     init(
         authService: AuthService,
@@ -58,11 +57,15 @@ struct RootView: View {
                     healthKitService: healthKitService,
                     onFinished: { viewModel.healthKitPermissionFinished() }
                 )
-            case .dailyInsight:
-                DailyInsightView(
+            case .main:
+                MainTabView(
                     healthKitService: healthKitService,
                     insightService: insightService,
-                    onOpenSettings: { showSettings = true }
+                    authService: authService,
+                    goalContext: viewModel.goalContext,
+                    onSignedOut: { Task { await viewModel.start() } },
+                    onResetGoal: { viewModel.userRequestedGoalReset() },
+                    onEditGoal: { viewModel.goalSummaryRequestedEdit() }
                 )
             case .error(let appError):
                 AppErrorView(
@@ -72,20 +75,6 @@ struct RootView: View {
             }
         }
         .task { await viewModel.start() }
-        .sheet(isPresented: $showSettings) {
-            SettingsView(
-                authService: authService,
-                goalContext: viewModel.goalContext,
-                onSignedOut: {
-                    showSettings = false
-                    Task { await viewModel.start() }
-                },
-                onResetGoal: {
-                    showSettings = false
-                    viewModel.userRequestedGoalReset()
-                }
-            )
-        }
     }
 }
 

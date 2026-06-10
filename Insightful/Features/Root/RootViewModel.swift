@@ -50,7 +50,7 @@ final class RootViewModel {
     /// 3. Fetch the saved goal context via ``GoalService/getContext()``.
     /// 4. Pick a route: missing context → ``RootRoute/goalSetup``; have
     ///    context but never asked HealthKit → ``RootRoute/healthKitPermission``;
-    ///    otherwise → ``RootRoute/dailyInsight``.
+    ///    otherwise → ``RootRoute/main``.
     ///
     /// Any throw is bucketed into an ``AppError`` via ``AppError/from(_:)`` so
     /// the error screen can render offline / server / rate-limited / unknown
@@ -93,7 +93,7 @@ final class RootViewModel {
     /// Called by ``GoalSummaryView`` when the user accepts the agent's
     /// interpretation. Defers the next-screen choice to
     /// ``decideRoute(hasGoalContext:)`` so a returning user who already
-    /// granted HealthKit lands directly on ``RootRoute/dailyInsight``
+    /// granted HealthKit lands directly on ``RootRoute/main``
     /// instead of seeing the permission explainer again.
     func goalSummaryConfirmed() {
         route = decideRoute(hasGoalContext: true)
@@ -123,10 +123,10 @@ final class RootViewModel {
     /// Called by ``HealthKitPermissionViewModel`` when the permission sheet
     /// has been shown (regardless of grant/deny outcome — iOS doesn't expose
     /// read state to apps). Records that we've asked and routes to the
-    /// daily insight.
+    /// main tabbed shell.
     func healthKitPermissionFinished() {
         userDefaults.set(true, forKey: PreferenceKeys.hasAskedForHealthKitAuthorization)
-        route = .dailyInsight
+        route = .main
     }
 
     /// Called by ``SettingsViewModel/resetGoal()`` when the user opts to
@@ -145,7 +145,7 @@ final class RootViewModel {
         if !userDefaults.bool(forKey: PreferenceKeys.hasAskedForHealthKitAuthorization) {
             return .healthKitPermission
         }
-        return .dailyInsight
+        return .main
     }
 }
 

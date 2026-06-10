@@ -2,23 +2,19 @@ import SwiftUI
 import UIKit
 
 /// Renders today's insight: the agent's writeup, alert pills, recommended
-/// actions, and charts for the metrics the insight calls out. A gear in the
-/// toolbar lets the user open settings (sign out / re-do goal setup).
+/// actions, and charts for the metrics the insight calls out.
 struct DailyInsightView: View {
     @Environment(\.openURL) private var openURL
     @State private var viewModel: DailyInsightViewModel
-    private let onOpenSettings: () -> Void
 
     init(
         healthKitService: any HealthKitServicing,
-        insightService: any InsightServicing,
-        onOpenSettings: @escaping () -> Void
+        insightService: any InsightServicing
     ) {
         _viewModel = State(initialValue: DailyInsightViewModel(
             healthKitService: healthKitService,
             insightService: insightService
         ))
-        self.onOpenSettings = onOpenSettings
     }
 
     var body: some View {
@@ -45,16 +41,6 @@ struct DailyInsightView: View {
                     ErrorState(message: message) {
                         Task { await viewModel.load() }
                     }
-                }
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        onOpenSettings()
-                    } label: {
-                        Image(systemName: "gearshape")
-                    }
-                    .accessibilityLabel("Settings")
                 }
             }
         }
@@ -125,21 +111,27 @@ private struct InsightContent: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 header
+                
                 if let progress = insight.progress, progress.daysUntilTarget != nil || !progress.subgoals.isEmpty {
                     ProgressCallout(progress: progress)
                 }
+                
                 if !insight.alerts.isEmpty {
                     alertSection
                 }
                 insightSection
-                if !chartEntries.isEmpty {
-                    chartSection
-                }
+                
                 if !insight.recommendedActions.isEmpty {
                     actionSection
                 }
+                
+                if !chartEntries.isEmpty {
+                    chartSection
+                }
             }
-            .padding()
+            .padding(.horizontal)
+            .padding(.top, 24)
+            .padding(.bottom)
         }
     }
 

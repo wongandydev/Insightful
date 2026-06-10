@@ -78,7 +78,7 @@ struct RootViewModelTests {
         await viewModel.start()
 
         // Then
-        #expect(viewModel.route == .dailyInsight)
+        #expect(viewModel.route == .main)
     }
 
     // MARK: - Cold start failures
@@ -213,7 +213,7 @@ struct RootViewModelTests {
         viewModel.goalSummaryConfirmed()
 
         // Then
-        #expect(viewModel.route == .dailyInsight)
+        #expect(viewModel.route == .main)
     }
 
     @Test
@@ -243,7 +243,7 @@ struct RootViewModelTests {
         viewModel.cancelGoalRefinement()
 
         // Then
-        #expect(viewModel.route == .dailyInsight)
+        #expect(viewModel.route == .main)
         #expect(viewModel.goalContext != nil)
     }
 
@@ -270,7 +270,7 @@ struct RootViewModelTests {
         viewModel.healthKitPermissionFinished()
 
         // Then
-        #expect(viewModel.route == .dailyInsight)
+        #expect(viewModel.route == .main)
         #expect(defaults.bool(forKey: PreferenceKeys.hasAskedForHealthKitAuthorization))
     }
 

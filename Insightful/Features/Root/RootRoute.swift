@@ -25,8 +25,9 @@ enum RootRoute: Equatable, Sendable {
     /// permission this install. Show the explainer + system prompt.
     case healthKitPermission
 
-    /// Steady-state: read HealthKit metrics and show today's insight.
-    case dailyInsight
+    /// Steady-state: the tabbed main shell. Home is the default tab; the
+    /// daily insight is launched from there as a sheet.
+    case main
 
     /// Hard cold-start failure (auth bootstrap or first server call). The
     /// associated ``AppError`` carries the user-facing category so the view
