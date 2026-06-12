@@ -29,8 +29,22 @@ struct Insight: Decodable, Equatable {
     let insightText: String
     let alerts: [String]
     let chartsToShow: [String]
+    let chartMetadata: [String: ChartMetadata]
     let recommendedActions: [String]
     let progress: InsightProgress?
+}
+
+/// Per-chart title and rationale shown above the chart canvas.
+///
+/// Keyed by the same metric identifier used in ``Insight/chartsToShow``. Not
+/// every entry in `chartsToShow` is guaranteed to have a matching metadata
+/// entry; callers fall back to a humanized metric name when the subscript
+/// returns `nil`.
+struct ChartMetadata: Decodable, Equatable {
+    /// Short headline (3-7 words) tailored to today's insight.
+    let title: String
+    /// 1-2 sentences explaining what the chart shows and why it matters today.
+    let rationale: String
 }
 
 /// Deterministic progress facts computed server-side from the goal context.
@@ -55,3 +69,5 @@ struct InsightSubgoalProgress: Decodable, Equatable {
     let text: String
     let target: String
 }
+
+// TODO: There is a DTO foldere but theres are all decodable? 

@@ -150,7 +150,11 @@ private struct InsightContent: View {
     private var chartSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             ForEach(chartEntries, id: \.name) { entry in
-                InsightChart(metricName: entry.name, values: entry.values)
+                InsightChart(
+                    metricName: entry.name,
+                    values: entry.values,
+                    metadata: insight.chartMetadata[entry.name]
+                )
             }
         }
     }
