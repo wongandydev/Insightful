@@ -291,7 +291,8 @@ struct RootViewModelTests {
                 injuriesOrLimitations: nil,
                 priorityMetrics: ["vo2Max", "restingHeartRate", "heartRateVariabilitySDNN", "sleepHours", "activeEnergyBurned"],
                 sportsOrActivities: ["running", "cycling", "swimming"],
-                subGoals: []
+                subGoals: [],
+                rationale: "We'll watch your swim volume, HRV, and sleep to keep your 70.3 build on track."
             )
         )
     }

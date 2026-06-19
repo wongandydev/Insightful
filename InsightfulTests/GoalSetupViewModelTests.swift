@@ -251,7 +251,8 @@ struct GoalSetupViewModelTests {
             injuriesOrLimitations: nil,
             priorityMetrics: ["restingHeartRate", "sleepHours"],
             sportsOrActivities: ["running"],
-            subGoals: ["long run 30km", "weekly volume 60km"]
+            subGoals: ["long run 30km", "weekly volume 60km"],
+            rationale: "We'll track your resting heart rate and sleep to gauge how your training is landing."
         )
     }
 }

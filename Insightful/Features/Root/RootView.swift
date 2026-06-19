@@ -55,6 +55,7 @@ struct RootView: View {
             case .healthKitPermission:
                 HealthKitPermissionView(
                     healthKitService: healthKitService,
+                    rationale: viewModel.goalContext?.rationale,
                     onFinished: { viewModel.healthKitPermissionFinished() }
                 )
             case .main:

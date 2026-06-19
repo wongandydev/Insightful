@@ -24,7 +24,8 @@ struct DTODecodingTests {
           "injuriesOrLimitations": "left knee tendonitis",
           "priorityMetrics": ["heartRateVariabilitySDNN", "restingHeartRate"],
           "sportsOrActivities": ["running"],
-          "subGoals": ["build base mileage", "stay injury free"]
+          "subGoals": ["build base mileage", "stay injury free"],
+          "rationale": "We'll watch your HRV and resting heart rate to keep your marathon build healthy."
         }
         """
 
@@ -40,6 +41,7 @@ struct DTODecodingTests {
         #expect(context.priorityMetrics == ["heartRateVariabilitySDNN", "restingHeartRate"])
         #expect(context.sportsOrActivities == ["running"])
         #expect(context.subGoals.count == 2)
+        #expect(context.rationale == "We'll watch your HRV and resting heart rate to keep your marathon build healthy.")
     }
 
     @Test
@@ -69,6 +71,9 @@ struct DTODecodingTests {
         #expect(context.targetDate == nil)
         #expect(context.previouslyTried == nil)
         #expect(context.injuriesOrLimitations == nil)
+        // Fixture omits `rationale` entirely — the legacy-row case the view's
+        // static-string fallback exists for.
+        #expect(context.rationale == nil)
     }
 
     // MARK: - GoalStartResponse

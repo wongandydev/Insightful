@@ -85,4 +85,9 @@ struct GoalContext: Decodable, Equatable {
     let priorityMetrics: [String]
     let sportsOrActivities: [String]
     let subGoals: [String]
+    /// Agent-written, goal-specific explanation of why the app reads Apple
+    /// Health, shown on ``HealthKitPermissionView``. Optional because goal
+    /// contexts saved before this field existed lack it — the view falls back
+    /// to its static copy when this is `nil`.
+    let rationale: String?
 }
