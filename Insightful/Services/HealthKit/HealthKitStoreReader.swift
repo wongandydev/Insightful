@@ -19,6 +19,18 @@ struct HealthKitStoreReader: HealthKitReading {
         try await store.requestAuthorization(toShare: [], read: read)
     }
 
+    func authorizationRequestStatus(read: Set<HKSampleType>) async throws -> HKAuthorizationRequestStatus {
+        try await withCheckedThrowingContinuation { continuation in
+            store.getRequestStatusForAuthorization(toShare: [], read: read) { status, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume(returning: status)
+                }
+            }
+        }
+    }
+
     // MARK: - Quantity reads
 
     func readDailyQuantity(

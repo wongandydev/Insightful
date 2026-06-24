@@ -9,6 +9,14 @@ protocol HealthKitServicing: Sendable {
     /// Reads the requested metrics over a trailing window of `days` calendar
     /// days, keyed by ``HealthKitMetric/rawValue``.
     func readDailyMetrics(over days: Int, metrics: [HealthKitMetric]) async throws -> [String: MetricValue]
+
+    /// `true` when iOS hasn't shown the system permission sheet for our read
+    /// types yet — call ``requestAuthorization()`` to prompt inline.
+    ///
+    /// Returns `false` once we've prompted; Apple intentionally hides the
+    /// outcome of read-permission decisions, so callers cannot infer granted
+    /// vs denied from this method. Use Settings as the fallback in that case.
+    func needsAuthorizationPrompt() async throws -> Bool
 }
 
 /// Reads HealthKit and produces a `[String: MetricValue]` ready for
@@ -35,10 +43,27 @@ actor HealthKitService: HealthKitServicing {
     /// - Throws: Any error surfaced by ``HKHealthStore`` (typically
     ///   `HKError.errorAuthorizationDenied` or transport failures).
     func requestAuthorization() async throws {
-        let types: Set<HKSampleType> = HealthKitMetric.allCases.reduce(into: []) { acc, metric in
+        try await reader.requestAuthorization(read: allReadTypes)
+    }
+
+    /// Reports whether the iOS permission sheet still needs to be shown for
+    /// any of the read types in ``allReadTypes``.
+    ///
+    /// Backed by ``HKHealthStore/getRequestStatusForAuthorization(toShare:read:)``.
+    /// `true` only when iOS reports ``HKAuthorizationRequestStatus/shouldRequest`` —
+    /// once we've prompted Apple won't distinguish granted from denied for
+    /// read-only types, so callers should fall back to Settings.
+    func needsAuthorizationPrompt() async throws -> Bool {
+        try await reader.authorizationRequestStatus(read: allReadTypes) == .shouldRequest
+    }
+
+    /// The full set of `HKSampleType`s the app needs read access to, built
+    /// from ``HealthKitMetric/allCases``. Shared by every authorization-aware
+    /// call so the prompt and the prompt-status check can never drift.
+    private var allReadTypes: Set<HKSampleType> {
+        HealthKitMetric.allCases.reduce(into: []) { acc, metric in
             acc.formUnion(metric.sampleTypes)
         }
-        try await reader.requestAuthorization(read: types)
     }
 
     /// Reads the requested metrics for a trailing window of days.

@@ -12,6 +12,11 @@ protocol HealthKitReading: Sendable {
     /// `share` is empty in our case — we only read.
     func requestAuthorization(read: Set<HKSampleType>) async throws
 
+    /// Asks HealthKit whether the system permission sheet still needs to be
+    /// shown for the supplied read types. Wraps
+    /// ``HKHealthStore/getRequestStatusForAuthorization(toShare:read:)``.
+    func authorizationRequestStatus(read: Set<HKSampleType>) async throws -> HKAuthorizationRequestStatus
+
     /// Reads a quantity-typed metric, bucketed into daily values over the
     /// given interval, aggregated by the supplied strategy. Returns one
     /// `Double` per calendar day (oldest → newest), with missing days dropped.

@@ -17,14 +17,21 @@ actor FakeHealthKitReader: HealthKitReading {
     private var sleepOutcome: Outcome = .returns([])
     private var runningWorkoutsOutcome: Outcome = .returns([])
     private var authorizationOutcome: AuthorizationOutcome = .succeeds
+    private var authorizationRequestStatusOutcome: AuthorizationRequestStatusOutcome = .returns(.unnecessary)
 
     private(set) var authorizationRequests: [Set<HKSampleType>] = []
+    private(set) var authorizationRequestStatusReads: [Set<HKSampleType>] = []
     private(set) var quantityReads: [HKQuantityTypeIdentifier] = []
     private(set) var sleepReadCount = 0
     private(set) var runningWorkoutReadCount = 0
 
     enum AuthorizationOutcome: Sendable {
         case succeeds
+        case throws_(any Error & Sendable)
+    }
+
+    enum AuthorizationRequestStatusOutcome: Sendable {
+        case returns(HKAuthorizationRequestStatus)
         case throws_(any Error & Sendable)
     }
 
@@ -46,12 +53,24 @@ actor FakeHealthKitReader: HealthKitReading {
         authorizationOutcome = outcome
     }
 
+    func programAuthorizationRequestStatus(_ outcome: AuthorizationRequestStatusOutcome) {
+        authorizationRequestStatusOutcome = outcome
+    }
+
     // MARK: - HealthKitReading
 
     func requestAuthorization(read: Set<HKSampleType>) async throws {
         authorizationRequests.append(read)
         switch authorizationOutcome {
         case .succeeds: return
+        case .throws_(let error): throw error
+        }
+    }
+
+    func authorizationRequestStatus(read: Set<HKSampleType>) async throws -> HKAuthorizationRequestStatus {
+        authorizationRequestStatusReads.append(read)
+        switch authorizationRequestStatusOutcome {
+        case .returns(let status): return status
         case .throws_(let error): throw error
         }
     }
