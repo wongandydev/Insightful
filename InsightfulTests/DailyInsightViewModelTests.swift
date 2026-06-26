@@ -71,6 +71,7 @@ struct DailyInsightViewModelTests {
             insightText: text,
             alerts: [],
             chartsToShow: [],
+            chartMetadata: [:],
             recommendedActions: [],
             progress: nil
         )
