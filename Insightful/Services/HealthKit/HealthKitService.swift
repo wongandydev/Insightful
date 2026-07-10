@@ -97,7 +97,8 @@ actor HealthKitService: HealthKitServicing {
             } catch {
                 continue
             }
-            guard let metricValue = pack(values, for: metric) else { continue }
+            let scaled = values.map { $0 * metric.wireScale }
+            guard let metricValue = pack(scaled, for: metric) else { continue }
             result[metric.rawValue] = metricValue
         }
         return result
