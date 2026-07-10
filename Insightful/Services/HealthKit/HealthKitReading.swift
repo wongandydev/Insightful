@@ -34,4 +34,9 @@ protocol HealthKitReading: Sendable {
     /// Sums `totalDistance` (in meters) for running workouts that occurred on
     /// each calendar day. One value per day, oldest → newest. Missing days dropped.
     func readRunningWorkoutDistances(in interval: DateInterval) async throws -> [Double]
+
+    /// Reads every workout session in the interval as a ``WorkoutSummary``,
+    /// oldest → newest. Optional summary fields are `nil` when HealthKit has
+    /// no value for that session.
+    func readWorkouts(in interval: DateInterval) async throws -> [WorkoutSummary]
 }

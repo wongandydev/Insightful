@@ -163,6 +163,7 @@ struct ServicesTests {
         _ = try await service.generate(
             date: "2026-05-13",
             metrics: ["vo2Max": .scalar(48.2)],
+            workouts: [],
             force: false
         )
 

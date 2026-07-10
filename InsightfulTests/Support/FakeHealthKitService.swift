@@ -9,10 +9,12 @@ actor FakeHealthKitService: HealthKitServicing {
     private var requestAuthorizationResult: Result<Void, any Error & Sendable> = .success(())
     private var readDailyMetricsResult: Result<[String: MetricValue], any Error & Sendable> = .success([:])
     private var needsAuthorizationPromptResult: Result<Bool, any Error & Sendable> = .success(false)
+    private var readWorkoutsResult: Result<[WorkoutSummary], any Error & Sendable> = .success([])
 
     private(set) var requestAuthorizationCalls = 0
     private(set) var readDailyMetricsCalls: [(days: Int, metrics: [HealthKitMetric])] = []
     private(set) var needsAuthorizationPromptCalls = 0
+    private(set) var readWorkoutsCalls: [Int] = []
 
     func programRequestAuthorization(_ result: Result<Void, any Error & Sendable>) {
         requestAuthorizationResult = result
@@ -36,8 +38,17 @@ actor FakeHealthKitService: HealthKitServicing {
         return try readDailyMetricsResult.get()
     }
 
+    func programReadWorkouts(_ result: Result<[WorkoutSummary], any Error & Sendable>) {
+        readWorkoutsResult = result
+    }
+
     func needsAuthorizationPrompt() async throws -> Bool {
         needsAuthorizationPromptCalls += 1
         return try needsAuthorizationPromptResult.get()
+    }
+
+    func readWorkouts(over days: Int) async throws -> [WorkoutSummary] {
+        readWorkoutsCalls.append(days)
+        return try readWorkoutsResult.get()
     }
 }

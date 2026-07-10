@@ -63,9 +63,13 @@ final class HomeViewModel {
                 over: Self.insightTrailingDays,
                 metrics: HealthKitMetric.allCases
             )
+            // Same degrade-don't-block posture as DailyInsightViewModel: a
+            // failed workout read still yields the aggregate-only insight.
+            let workouts = (try? await healthKitService.readWorkouts(over: Self.insightTrailingDays)) ?? []
             let insight = try await insightService.generate(
                 date: LocalCalendarDate.string(from: Date()),
                 metrics: insightMetrics,
+                workouts: workouts,
                 force: false
             )
             phase = .ready(HomeData(

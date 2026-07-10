@@ -13,9 +13,15 @@ actor FakeHealthKitReader: HealthKitReading {
         case throws_(any Error & Sendable)
     }
 
+    enum WorkoutsOutcome: Sendable {
+        case returns([WorkoutSummary])
+        case throws_(any Error & Sendable)
+    }
+
     private var quantityOutcomes: [HKQuantityTypeIdentifier: Outcome] = [:]
     private var sleepOutcome: Outcome = .returns([])
     private var runningWorkoutsOutcome: Outcome = .returns([])
+    private var workoutsOutcome: WorkoutsOutcome = .returns([])
     private var authorizationOutcome: AuthorizationOutcome = .succeeds
     private var authorizationRequestStatusOutcome: AuthorizationRequestStatusOutcome = .returns(.unnecessary)
 
@@ -24,6 +30,7 @@ actor FakeHealthKitReader: HealthKitReading {
     private(set) var quantityReads: [HKQuantityTypeIdentifier] = []
     private(set) var sleepReadCount = 0
     private(set) var runningWorkoutReadCount = 0
+    private(set) var workoutReadIntervals: [DateInterval] = []
 
     enum AuthorizationOutcome: Sendable {
         case succeeds
@@ -47,6 +54,10 @@ actor FakeHealthKitReader: HealthKitReading {
 
     func programRunningWorkouts(_ outcome: Outcome) {
         runningWorkoutsOutcome = outcome
+    }
+
+    func programWorkouts(_ outcome: WorkoutsOutcome) {
+        workoutsOutcome = outcome
     }
 
     func programAuthorization(_ outcome: AuthorizationOutcome) {
@@ -93,6 +104,14 @@ actor FakeHealthKitReader: HealthKitReading {
     func readRunningWorkoutDistances(in interval: DateInterval) async throws -> [Double] {
         runningWorkoutReadCount += 1
         return try unwrap(runningWorkoutsOutcome)
+    }
+
+    func readWorkouts(in interval: DateInterval) async throws -> [WorkoutSummary] {
+        workoutReadIntervals.append(interval)
+        switch workoutsOutcome {
+        case .returns(let workouts): return workouts
+        case .throws_(let error): throw error
+        }
     }
 
     private func unwrap(_ outcome: Outcome) throws -> [Double] {

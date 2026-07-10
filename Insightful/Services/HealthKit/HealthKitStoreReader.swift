@@ -170,6 +170,67 @@ struct HealthKitStoreReader: HealthKitReading {
             .sorted(by: { $0.key < $1.key })
             .map { $0.value }
     }
+
+    // MARK: - Workout sessions
+
+    func readWorkouts(in interval: DateInterval) async throws -> [WorkoutSummary] {
+        let predicate = HKQuery.predicateForSamples(
+            withStart: interval.start,
+            end: interval.end,
+            options: []
+        )
+        let workouts: [HKWorkout] = try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: HKWorkoutType.workoutType(),
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            ) { _, results, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume(returning: (results as? [HKWorkout]) ?? [])
+                }
+            }
+            store.execute(query)
+        }
+
+        return workouts.map { workout in
+            WorkoutSummary(
+                activityType: Self.activityName(for: workout.workoutActivityType),
+                date: LocalCalendarDate.string(from: workout.startDate),
+                durationMinutes: workout.duration / 60,
+                distanceKm: workout.totalDistance.map { $0.doubleValue(for: .meter()) / 1000 },
+                energyKcal: workout.statistics(for: HKQuantityType(.activeEnergyBurned))?
+                    .sumQuantity()?
+                    .doubleValue(for: .kilocalorie()),
+                averageHeartRate: workout.statistics(for: HKQuantityType(.heartRate))?
+                    .averageQuantity()?
+                    .doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+            )
+        }
+    }
+
+    /// Backend-facing name for an ``HKWorkoutActivityType``. Covers the
+    /// activities the goal agent talks about; everything else is `other` so
+    /// the wire vocabulary stays small.
+    private static func activityName(for type: HKWorkoutActivityType) -> String {
+        switch type {
+        case .running: return "running"
+        case .cycling: return "cycling"
+        case .swimming: return "swimming"
+        case .walking: return "walking"
+        case .hiking: return "hiking"
+        case .rowing: return "rowing"
+        case .yoga: return "yoga"
+        case .pilates: return "pilates"
+        case .traditionalStrengthTraining, .functionalStrengthTraining: return "strength_training"
+        case .highIntensityIntervalTraining: return "hiit"
+        case .elliptical: return "elliptical"
+        case .stairClimbing: return "stair_climbing"
+        default: return "other"
+        }
+    }
 }
 
 enum HealthKitReadError: Error, Equatable {

@@ -41,12 +41,17 @@ enum Endpoints {
     static func generateInsight(
         date: String,
         metrics: [String: MetricValue],
+        workouts: [WorkoutSummary],
         force: Bool
     ) throws -> APIRequest<InsightResponse> {
         try .json(
             method: .post,
             path: force ? "/insight?force=true" : "/insight",
-            body: InsightRequest(date: date, metrics: metrics),
+            body: InsightRequest(
+                date: date,
+                metrics: metrics,
+                workouts: workouts.isEmpty ? nil : workouts
+            ),
             requiresAuth: true
         )
     }
