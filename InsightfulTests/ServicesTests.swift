@@ -56,7 +56,7 @@ struct ServicesTests {
     func goalServiceStartReturnsDecodedThreadId() async throws {
         // Given
         let mock = MockHTTPClient()
-        let body = #"{"threadId":"t-1","status":"in_progress","messages":[{"role":"assistant","content":"hi"}]}"#
+        let body = #"{"threadId":"t-1","status":"in_progress","mode":"created","messages":[{"role":"assistant","content":"hi"}]}"#
         await mock.enqueue(
             status: 200,
             body: Data(body.utf8),
@@ -79,7 +79,7 @@ struct ServicesTests {
     func goalServiceStartHitsPostGoalStartWithDate() async throws {
         // Given
         let mock = MockHTTPClient()
-        let body = #"{"threadId":"t-1","status":"in_progress","messages":[{"role":"assistant","content":"hi"}]}"#
+        let body = #"{"threadId":"t-1","status":"in_progress","mode":"created","messages":[{"role":"assistant","content":"hi"}]}"#
         await mock.enqueue(
             status: 200,
             body: Data(body.utf8),
@@ -150,7 +150,7 @@ struct ServicesTests {
         // Given
         let mock = MockHTTPClient()
         let body = #"""
-        {"cached":false,"insight":{"insightText":"ok","alerts":[],"chartsToShow":[],"recommendedActions":[]}}
+        {"cached":false,"insight":{"insightText":"ok","alerts":[],"chartsToShow":[],"chartMetadata":{},"recommendedActions":[]}}
         """#
         await mock.enqueue(
             status: 200,
@@ -162,7 +162,8 @@ struct ServicesTests {
         // When
         _ = try await service.generate(
             date: "2026-05-13",
-            metrics: ["vo2Max": .scalar(48.2)]
+            metrics: ["vo2Max": .scalar(48.2)],
+            force: false
         )
 
         // Then

@@ -81,7 +81,8 @@ struct EndpointsTests {
             metrics: [
                 "vo2Max": .scalar(48.2),
                 "heartRateVariabilitySDNN": .series([52, 48, 61])
-            ]
+            ],
+            force: false
         )
         let body = try #require(endpoint.body)
         let json = try JSONSerialization.jsonObject(with: body) as? [String: Any]
@@ -92,5 +93,18 @@ struct EndpointsTests {
         #expect(json?["date"] as? String == "2026-05-13")
         #expect(metrics["vo2Max"] as? Double == 48.2)
         #expect(metrics["heartRateVariabilitySDNN"] as? [Double] == [52, 48, 61])
+    }
+
+    @Test
+    func generateInsightWhenForcedAppendsForceQuery() throws {
+        // Given / When
+        let endpoint = try Endpoints.generateInsight(
+            date: "2026-05-13",
+            metrics: ["vo2Max": .scalar(48.2)],
+            force: true
+        )
+
+        // Then
+        #expect(endpoint.path == "/insight?force=true")
     }
 }

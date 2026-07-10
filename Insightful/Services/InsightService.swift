@@ -10,7 +10,14 @@ import Foundation
 protocol InsightServicing: Sendable {
     /// Generates an insight for `date` from the supplied HealthKit-derived
     /// metrics.
-    func generate(date: String, metrics: [String: MetricValue]) async throws -> Insight
+    ///
+    /// - Parameters:
+    ///   - date: The user's local calendar date as `YYYY-MM-DD`.
+    ///   - metrics: HealthKit-derived payload keyed by metric identifier.
+    ///   - force: When `true`, the server bypasses its per-day cache and
+    ///     regenerates. Reserve for a user-driven refresh — the route is
+    ///     rate-limited.
+    func generate(date: String, metrics: [String: MetricValue], force: Bool) async throws -> Insight
 }
 
 /// Wraps `/insight`. The server caches per `(userId, date)` so calling twice on
@@ -19,8 +26,8 @@ protocol InsightServicing: Sendable {
 struct InsightService: InsightServicing {
     let client: APIClient
 
-    func generate(date: String, metrics: [String: MetricValue]) async throws -> Insight {
-        let response = try await client.send(Endpoints.generateInsight(date: date, metrics: metrics))
+    func generate(date: String, metrics: [String: MetricValue], force: Bool) async throws -> Insight {
+        let response = try await client.send(Endpoints.generateInsight(date: date, metrics: metrics, force: force))
         return response.insight
     }
 }

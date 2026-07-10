@@ -65,7 +65,8 @@ final class HomeViewModel {
             )
             let insight = try await insightService.generate(
                 date: LocalCalendarDate.string(from: Date()),
-                metrics: insightMetrics
+                metrics: insightMetrics,
+                force: false
             )
             phase = .ready(HomeData(
                 insight: insight,

@@ -7,14 +7,14 @@ import Foundation
 /// and the next return value is programmed via ``programGenerate(_:)``.
 actor FakeInsightService: InsightServicing {
     private var generateResult: Result<Insight, any Error & Sendable> = .failure(FakeError.notProgrammed)
-    private(set) var generateCalls: [(date: String, metrics: [String: MetricValue])] = []
+    private(set) var generateCalls: [(date: String, metrics: [String: MetricValue], force: Bool)] = []
 
     func programGenerate(_ result: Result<Insight, any Error & Sendable>) {
         generateResult = result
     }
 
-    func generate(date: String, metrics: [String: MetricValue]) async throws -> Insight {
-        generateCalls.append((date: date, metrics: metrics))
+    func generate(date: String, metrics: [String: MetricValue], force: Bool) async throws -> Insight {
+        generateCalls.append((date: date, metrics: metrics, force: force))
         return try generateResult.get()
     }
 }

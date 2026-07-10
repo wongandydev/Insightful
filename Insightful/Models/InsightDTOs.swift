@@ -32,6 +32,23 @@ struct Insight: Decodable, Equatable {
     let chartMetadata: [String: ChartMetadata]
     let recommendedActions: [String]
     let progress: InsightProgress?
+    /// ISO-8601 UTC timestamp set server-side when the insight was generated.
+    /// `nil` on cached rows written before the field existed — hide any
+    /// freshness UI in that case.
+    let generatedAt: String?
+}
+
+extension Insight {
+    /// ``generatedAt`` parsed to a `Date`, or `nil` when the field is absent
+    /// or malformed. The server emits fractional-second ISO-8601
+    /// (`2026-07-08T16:42:03.512Z`); plain-second timestamps are accepted too.
+    var generatedAtDate: Date? {
+        guard let generatedAt else { return nil }
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractional.date(from: generatedAt) { return date }
+        return ISO8601DateFormatter().date(from: generatedAt)
+    }
 }
 
 /// Per-chart title and rationale shown above the chart canvas.
@@ -69,5 +86,3 @@ struct InsightSubgoalProgress: Decodable, Equatable {
     let text: String
     let target: String
 }
-
-// TODO: There is a DTO foldere but theres are all decodable? 
