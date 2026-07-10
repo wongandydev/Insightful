@@ -11,6 +11,12 @@ enum RootRoute: Equatable, Sendable {
     /// launch placeholder.
     case launching
 
+    /// First launch, before any goal exists: one static screen framing what
+    /// the app does and what happens next, so the user isn't dropped into
+    /// the goal-setup chat cold. Shown once, gated on
+    /// ``PreferenceKeys/hasSeenOnboarding``.
+    case onboarding
+
     /// User has no saved goal context — route them through the goal-setup
     /// conversation.
     case goalSetup
