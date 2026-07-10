@@ -49,6 +49,43 @@ struct SettingsView: View {
                     }
                 }
                 Section("Account") {
+                    if let linkedEmail = viewModel.linkedEmail {
+                        LabeledContent("Signed in as", value: linkedEmail)
+                        if let linkMessage = viewModel.linkMessage {
+                            Text(linkMessage)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Text("You're anonymous — create an account so your goal and history survive a new phone.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        TextField("Email", text: $viewModel.linkEmailInput)
+                            .keyboardType(.emailAddress)
+                            .textContentType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        SecureField("Password (8+ characters)", text: $viewModel.linkPasswordInput)
+                            .textContentType(.newPassword)
+                        Button {
+                            Task { await viewModel.linkAccount() }
+                        } label: {
+                            if viewModel.isLinking {
+                                HStack {
+                                    ProgressView()
+                                    Text("Creating account…")
+                                }
+                            } else {
+                                Text("Create account")
+                            }
+                        }
+                        .disabled(viewModel.isLinking)
+                        if let linkError = viewModel.linkErrorMessage {
+                            Text(linkError)
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                        }
+                    }
                     Button(role: .destructive) {
                         showSignOutConfirmation = true
                     } label: {
@@ -73,6 +110,7 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
+            .task { await viewModel.loadLinkedEmail() }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }

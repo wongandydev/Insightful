@@ -55,6 +55,49 @@ struct AuthServiceTests {
     }
 
     @Test
+    func bootstrapWhenSessionRestoreThrowsDoesNotCreateNewAnonymousUser() async throws {
+        // Given — a throwing restore (e.g. failed network refresh of an
+        // expired token) must NOT be treated as "no session": signing in
+        // anonymously would overwrite the Keychain and orphan the user's data
+        let backend = FakeAuthBackend()
+        await backend.programCurrentSession(.throws_(FakeError.network))
+        await backend.programSignIn(.returns(initialSession))
+        let service = AuthService(backend: backend)
+
+        // When
+        let threw: Bool
+        do {
+            try await service.bootstrap()
+            threw = false
+        } catch {
+            threw = true
+        }
+
+        // Then
+        #expect(threw)
+        #expect(await backend.signInCalls == 0)
+        #expect(service.session == nil)
+        #expect(service.isReady == false)
+    }
+
+    @Test
+    func linkEmailForwardsCredentialsToBackend() async throws {
+        // Given
+        let backend = FakeAuthBackend()
+        await backend.programLinkEmail(.success(()))
+        let service = AuthService(backend: backend)
+
+        // When
+        try await service.linkEmail(email: "a@b.com", password: "hunter22")
+
+        // Then
+        let calls = await backend.linkEmailCalls
+        #expect(calls.count == 1)
+        #expect(calls.first?.email == "a@b.com")
+        #expect(calls.first?.password == "hunter22")
+    }
+
+    @Test
     func bootstrapWhenSignInThrowsLeavesServiceNotReady() async throws {
         // Given
         let backend = FakeAuthBackend()
