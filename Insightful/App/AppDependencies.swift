@@ -16,6 +16,7 @@ struct AppDependencies {
     let userService: UserService
     let goalService: GoalService
     let insightService: InsightService
+    let adviceService: AdviceService
     let healthKitService: HealthKitService
     let userDefaults: UserDefaults
 
@@ -42,6 +43,7 @@ struct AppDependencies {
             userService: UserService(client: apiClient),
             goalService: GoalService(client: apiClient),
             insightService: InsightService(client: apiClient),
+            adviceService: AdviceService(client: apiClient),
             healthKitService: healthKitService,
             userDefaults: .standard
         )

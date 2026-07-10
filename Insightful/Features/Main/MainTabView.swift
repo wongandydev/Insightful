@@ -5,14 +5,16 @@ import SwiftUI
 ///
 /// 1. ``HomeView`` — the default tab; launches the daily insight as a sheet
 ///    and hosts the gear that opens Settings.
-/// 2. A Goal tab — read-only ``GoalSummaryView`` whose edit button bubbles
+/// 2. A Coach tab — the free-form ``CoachChatView`` conversation.
+/// 3. A Goal tab — read-only ``GoalSummaryView`` whose edit button bubbles
 ///    up to ``RootViewModel/goalSummaryRequestedEdit()`` so refinement
 ///    flows through the existing top-level route.
-/// 3. A History placeholder — stub until the backend exposes a past-insight
+/// 4. A History placeholder — stub until the backend exposes a past-insight
 ///    list.
 struct MainTabView: View {
     private let healthKitService: any HealthKitServicing
     private let insightService: any InsightServicing
+    private let adviceService: any AdviceServicing
     private let authService: AuthService
     private let goalContext: GoalContext?
     private let onSignedOut: () -> Void
@@ -22,6 +24,7 @@ struct MainTabView: View {
     init(
         healthKitService: any HealthKitServicing,
         insightService: any InsightServicing,
+        adviceService: any AdviceServicing,
         authService: AuthService,
         goalContext: GoalContext?,
         onSignedOut: @escaping () -> Void,
@@ -30,6 +33,7 @@ struct MainTabView: View {
     ) {
         self.healthKitService = healthKitService
         self.insightService = insightService
+        self.adviceService = adviceService
         self.authService = authService
         self.goalContext = goalContext
         self.onSignedOut = onSignedOut
@@ -49,6 +53,16 @@ struct MainTabView: View {
             )
             .tabItem {
                 Label("Home", systemImage: "house")
+            }
+
+            NavigationStack {
+                CoachChatView(
+                    adviceService: adviceService,
+                    healthKitService: healthKitService
+                )
+            }
+            .tabItem {
+                Label("Coach", systemImage: "bubble.left.and.bubble.right")
             }
 
             NavigationStack {

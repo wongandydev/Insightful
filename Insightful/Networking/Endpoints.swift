@@ -38,6 +38,24 @@ enum Endpoints {
         APIRequest(method: .get, path: "/goal/context", body: nil, requiresAuth: true)
     }
 
+    static func startAdvice() -> APIRequest<AdviceStartResponse> {
+        APIRequest(method: .post, path: "/advice/start", body: nil, requiresAuth: true)
+    }
+
+    static func sendAdviceMessage(
+        threadId: String,
+        message: String,
+        date: String,
+        metrics: [String: MetricValue]?
+    ) throws -> APIRequest<AdviceMessageResponse> {
+        try .json(
+            method: .post,
+            path: "/advice/message",
+            body: AdviceMessageRequest(threadId: threadId, message: message, date: date, metrics: metrics),
+            requiresAuth: true
+        )
+    }
+
     static func generateInsight(
         date: String,
         metrics: [String: MetricValue],

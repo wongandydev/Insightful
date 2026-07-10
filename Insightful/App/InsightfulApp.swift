@@ -6,6 +6,7 @@ struct InsightfulApp: App {
     private let userService: UserService
     private let goalService: GoalService
     private let insightService: InsightService
+    private let adviceService: AdviceService
     private let healthKitService: HealthKitService
     private let userDefaults: UserDefaults
 
@@ -15,6 +16,7 @@ struct InsightfulApp: App {
         userService = deps.userService
         goalService = deps.goalService
         insightService = deps.insightService
+        adviceService = deps.adviceService
         healthKitService = deps.healthKitService
         userDefaults = deps.userDefaults
     }
@@ -26,6 +28,7 @@ struct InsightfulApp: App {
                 userService: userService,
                 goalService: goalService,
                 insightService: insightService,
+                adviceService: adviceService,
                 healthKitService: healthKitService,
                 userDefaults: userDefaults
             )
