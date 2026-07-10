@@ -13,6 +13,7 @@ import SwiftUI
 struct MainTabView: View {
     private let healthKitService: any HealthKitServicing
     private let insightService: any InsightServicing
+    private let notificationService: any NotificationScheduling
     private let authService: AuthService
     private let goalContext: GoalContext?
     private let onSignedOut: () -> Void
@@ -22,6 +23,7 @@ struct MainTabView: View {
     init(
         healthKitService: any HealthKitServicing,
         insightService: any InsightServicing,
+        notificationService: any NotificationScheduling,
         authService: AuthService,
         goalContext: GoalContext?,
         onSignedOut: @escaping () -> Void,
@@ -30,6 +32,7 @@ struct MainTabView: View {
     ) {
         self.healthKitService = healthKitService
         self.insightService = insightService
+        self.notificationService = notificationService
         self.authService = authService
         self.goalContext = goalContext
         self.onSignedOut = onSignedOut
@@ -42,6 +45,7 @@ struct MainTabView: View {
             HomeView(
                 healthKitService: healthKitService,
                 insightService: insightService,
+                notificationService: notificationService,
                 authService: authService,
                 goalContext: goalContext,
                 onSignedOut: onSignedOut,

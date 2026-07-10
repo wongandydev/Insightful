@@ -1,5 +1,6 @@
 import Foundation
 import HealthKit
+import UserNotifications
 
 /// Composition root. Built once in ``InsightfulApp/init()`` and immediately
 /// decomposed into individual service references on the app instance — the
@@ -17,6 +18,7 @@ struct AppDependencies {
     let goalService: GoalService
     let insightService: InsightService
     let healthKitService: HealthKitService
+    let notificationService: NotificationService
     let userDefaults: UserDefaults
 
     /// Production wiring. The `tokenProvider` and `refreshToken` closures
@@ -43,6 +45,10 @@ struct AppDependencies {
             goalService: GoalService(client: apiClient),
             insightService: InsightService(client: apiClient),
             healthKitService: healthKitService,
+            notificationService: NotificationService(
+                center: .current(),
+                userDefaults: .standard
+            ),
             userDefaults: .standard
         )
     }

@@ -11,6 +11,7 @@ struct SettingsView: View {
 
     init(
         authService: AuthService,
+        notificationService: any NotificationScheduling,
         goalContext: GoalContext?,
         onSignedOut: @escaping () -> Void,
         onResetGoal: @escaping () -> Void
@@ -18,6 +19,7 @@ struct SettingsView: View {
         self.goalContext = goalContext
         _viewModel = State(initialValue: SettingsViewModel(
             authService: authService,
+            notificationService: notificationService,
             onSignedOut: onSignedOut,
             onResetGoal: onResetGoal
         ))
@@ -48,6 +50,27 @@ struct SettingsView: View {
                         .disabled(viewModel.isSigningOut)
                     }
                 }
+                Section("Notifications") {
+                    Toggle("Daily insight reminder", isOn: Binding(
+                        get: { viewModel.reminderEnabled },
+                        set: { enabled in Task { await viewModel.setReminderEnabled(enabled) } }
+                    ))
+                    if viewModel.reminderEnabled {
+                        DatePicker(
+                            "Reminder time",
+                            selection: Binding(
+                                get: { viewModel.reminderTime },
+                                set: { time in Task { await viewModel.setReminderTime(time) } }
+                            ),
+                            displayedComponents: .hourAndMinute
+                        )
+                    }
+                    if let deniedMessage = viewModel.notificationsDeniedMessage {
+                        Text(deniedMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 Section("Account") {
                     Button(role: .destructive) {
                         showSignOutConfirmation = true
@@ -73,6 +96,7 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
+            .task { await viewModel.loadReminderPreference() }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }

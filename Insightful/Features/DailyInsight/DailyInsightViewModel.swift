@@ -34,13 +34,16 @@ final class DailyInsightViewModel {
 
     private let healthKitService: any HealthKitServicing
     private let insightService: any InsightServicing
+    private let notificationService: any NotificationScheduling
 
     init(
         healthKitService: any HealthKitServicing,
-        insightService: any InsightServicing
+        insightService: any InsightServicing,
+        notificationService: any NotificationScheduling
     ) {
         self.healthKitService = healthKitService
         self.insightService = insightService
+        self.notificationService = notificationService
         self.phase = .loading
         self.metricsPayload = [:]
     }
@@ -74,6 +77,9 @@ final class DailyInsightViewModel {
                 force: force
             )
             phase = .ready(insight)
+            if let firstAlert = insight.alerts.first {
+                await notificationService.scheduleAlertFollowUp(firstAlert: firstAlert)
+            }
         } catch {
             phase = .error("We couldn't load today's insight.")
         }

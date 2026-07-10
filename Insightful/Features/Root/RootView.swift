@@ -10,6 +10,7 @@ struct RootView: View {
     private let goalService: GoalService
     private let insightService: InsightService
     private let healthKitService: HealthKitService
+    private let notificationService: NotificationService
 
     @State private var viewModel: RootViewModel
 
@@ -19,12 +20,14 @@ struct RootView: View {
         goalService: GoalService,
         insightService: InsightService,
         healthKitService: HealthKitService,
+        notificationService: NotificationService,
         userDefaults: UserDefaults
     ) {
         self.authService = authService
         self.goalService = goalService
         self.insightService = insightService
         self.healthKitService = healthKitService
+        self.notificationService = notificationService
         _viewModel = State(initialValue: RootViewModel(
             authService: authService,
             userService: userService,
@@ -66,6 +69,7 @@ struct RootView: View {
                 MainTabView(
                     healthKitService: healthKitService,
                     insightService: insightService,
+                    notificationService: notificationService,
                     authService: authService,
                     goalContext: viewModel.goalContext,
                     onSignedOut: { Task { await viewModel.start() } },
