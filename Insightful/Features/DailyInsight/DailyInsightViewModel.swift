@@ -52,7 +52,11 @@ final class DailyInsightViewModel {
     /// user-facing outcome is the same — the screen cannot proceed. An
     /// empty HealthKit read short-circuits to ``Phase/noHealthData`` so the
     /// view can prompt the user to grant access; `/insight` is not called.
-    func load() async {
+    ///
+    /// - Parameter force: When `true`, the server regenerates instead of
+    ///   serving the day's cached insight. Driven by the refresh control —
+    ///   screen-open loads pass `false` so the cache keeps repeat opens cheap.
+    func load(force: Bool = false) async {
         phase = .loading
         do {
             let metrics = try await healthKitService.readDailyMetrics(
@@ -66,7 +70,8 @@ final class DailyInsightViewModel {
             metricsPayload = metrics
             let insight = try await insightService.generate(
                 date: LocalCalendarDate.string(from: Date()),
-                metrics: metrics
+                metrics: metrics,
+                force: force
             )
             phase = .ready(insight)
         } catch {

@@ -118,6 +118,37 @@ struct HealthKitServiceTests {
         #expect(result.isEmpty)
     }
 
+    // MARK: - readDailyMetrics: percent scaling
+
+    @Test
+    func readDailyMetricsScalesBodyFatFractionToHumanPercent() async throws {
+        // Given — HKUnit.percent() yields 0.0–1.0; bodyFat uses .mostRecent.
+        // Values are exact binary fractions so the scaled equality is exact.
+        let reader = FakeHealthKitReader()
+        await reader.programQuantity(.bodyFatPercentage, .returns([0.25, 0.1875]))
+        let service = HealthKitService(reader: reader)
+
+        // When
+        let result = try await service.readDailyMetrics(over: 7, metrics: [.bodyFatPercentage])
+
+        // Then
+        #expect(result["bodyFatPercentage"] == .scalar(18.75))
+    }
+
+    @Test
+    func readDailyMetricsScalesOxygenSaturationSeriesToHumanPercent() async throws {
+        // Given — exact binary fractions, as above
+        let reader = FakeHealthKitReader()
+        await reader.programQuantity(.oxygenSaturation, .returns([0.9375, 0.5, 1.0]))
+        let service = HealthKitService(reader: reader)
+
+        // When
+        let result = try await service.readDailyMetrics(over: 7, metrics: [.oxygenSaturation])
+
+        // Then
+        #expect(result["oxygenSaturation"] == .series([93.75, 50, 100]))
+    }
+
     // MARK: - readDailyMetrics: per-metric failure tolerance
 
     @Test

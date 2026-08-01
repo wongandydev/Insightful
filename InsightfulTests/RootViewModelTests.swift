@@ -13,7 +13,7 @@ struct RootViewModelTests {
         // Given
         let goalService = FakeGoalService()
         await goalService.programGetContext(.success(GoalContextResponse(hasContext: false, context: nil)))
-        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false, hasSeenOnboarding: true)
         let viewModel = await makeViewModel(
             goalService: goalService,
             userDefaults: defaults
@@ -31,7 +31,7 @@ struct RootViewModelTests {
         // Given
         let goalService = FakeGoalService()
         await goalService.programGetContext(.success(populatedGoalContextResponse))
-        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false, hasSeenOnboarding: true)
         let viewModel = await makeViewModel(
             goalService: goalService,
             userDefaults: defaults
@@ -50,7 +50,7 @@ struct RootViewModelTests {
         // Given
         let goalService = FakeGoalService()
         await goalService.programGetContext(.success(GoalContextResponse(hasContext: false, context: nil)))
-        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false, hasSeenOnboarding: true)
         let viewModel = await makeViewModel(
             goalService: goalService,
             userDefaults: defaults
@@ -68,7 +68,7 @@ struct RootViewModelTests {
         // Given
         let goalService = FakeGoalService()
         await goalService.programGetContext(.success(populatedGoalContextResponse))
-        let defaults = makeTestUserDefaults(hasAskedForHealthKit: true)
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: true, hasSeenOnboarding: true)
         let viewModel = await makeViewModel(
             goalService: goalService,
             userDefaults: defaults
@@ -81,6 +81,58 @@ struct RootViewModelTests {
         #expect(viewModel.route == .main)
     }
 
+    // MARK: - Onboarding gate
+
+    @Test
+    func startWhenNoGoalContextAndOnboardingUnseenRoutesToOnboarding() async throws {
+        // Given
+        let goalService = FakeGoalService()
+        await goalService.programGetContext(.success(GoalContextResponse(hasContext: false, context: nil)))
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false, hasSeenOnboarding: false)
+        let viewModel = await makeViewModel(
+            goalService: goalService,
+            userDefaults: defaults
+        )
+
+        // When
+        await viewModel.start()
+
+        // Then
+        #expect(viewModel.route == .onboarding)
+    }
+
+    @Test
+    func startWhenContextExistsAndOnboardingUnseenSkipsOnboarding() async throws {
+        // Given
+        let goalService = FakeGoalService()
+        await goalService.programGetContext(.success(populatedGoalContextResponse))
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: true, hasSeenOnboarding: false)
+        let viewModel = await makeViewModel(
+            goalService: goalService,
+            userDefaults: defaults
+        )
+
+        // When
+        await viewModel.start()
+
+        // Then
+        #expect(viewModel.route == .main)
+    }
+
+    @Test
+    func onboardingFinishedPersistsSeenFlagAndRoutesToGoalSetup() async {
+        // Given
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false, hasSeenOnboarding: false)
+        let viewModel = await makeViewModel(userDefaults: defaults)
+
+        // When
+        viewModel.onboardingFinished()
+
+        // Then
+        #expect(viewModel.route == .goalSetup)
+        #expect(defaults.bool(forKey: PreferenceKeys.hasSeenOnboarding))
+    }
+
     // MARK: - Cold start failures
 
     @Test
@@ -88,7 +140,7 @@ struct RootViewModelTests {
         // Given
         let userService = FakeUserService()
         await userService.program(.failure(FakeError.network))
-        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false, hasSeenOnboarding: true)
         let viewModel = await makeViewModel(
             userService: userService,
             userDefaults: defaults
@@ -106,7 +158,7 @@ struct RootViewModelTests {
         // Given
         let goalService = FakeGoalService()
         await goalService.programGetContext(.failure(APIError.transport("no network")))
-        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false, hasSeenOnboarding: true)
         let viewModel = await makeViewModel(
             goalService: goalService,
             userDefaults: defaults
@@ -124,7 +176,7 @@ struct RootViewModelTests {
         // Given
         let goalService = FakeGoalService()
         await goalService.programGetContext(.failure(APIError.server(status: 503, requestId: nil)))
-        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false, hasSeenOnboarding: true)
         let viewModel = await makeViewModel(
             goalService: goalService,
             userDefaults: defaults
@@ -142,7 +194,7 @@ struct RootViewModelTests {
         // Given
         let goalService = FakeGoalService()
         await goalService.programGetContext(.failure(APIError.rateLimited(retryAfterSeconds: 10, requestId: nil)))
-        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false, hasSeenOnboarding: true)
         let viewModel = await makeViewModel(
             goalService: goalService,
             userDefaults: defaults
@@ -160,7 +212,7 @@ struct RootViewModelTests {
         // Given
         let goalService = FakeGoalService()
         await goalService.programGetContext(.failure(APIError.decoding("bad json", requestId: nil)))
-        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false, hasSeenOnboarding: true)
         let viewModel = await makeViewModel(
             goalService: goalService,
             userDefaults: defaults
@@ -178,7 +230,7 @@ struct RootViewModelTests {
     @Test
     func goalSetupCompletedRoutesToGoalSummaryAndStoresContext() async {
         // Given
-        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false, hasSeenOnboarding: true)
         let viewModel = await makeViewModel(userDefaults: defaults)
         let context = populatedGoalContextResponse.context!
 
@@ -193,7 +245,7 @@ struct RootViewModelTests {
     @Test
     func goalSummaryConfirmedWhenHealthKitNotYetAskedRoutesToPermission() async {
         // Given
-        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false, hasSeenOnboarding: true)
         let viewModel = await makeViewModel(userDefaults: defaults)
 
         // When
@@ -206,7 +258,7 @@ struct RootViewModelTests {
     @Test
     func goalSummaryConfirmedWhenHealthKitAlreadyAskedRoutesToDailyInsight() async {
         // Given
-        let defaults = makeTestUserDefaults(hasAskedForHealthKit: true)
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: true, hasSeenOnboarding: true)
         let viewModel = await makeViewModel(userDefaults: defaults)
 
         // When
@@ -219,7 +271,7 @@ struct RootViewModelTests {
     @Test
     func goalSummaryRequestedEditPreservesContextAndRoutesToGoalSetup() async {
         // Given
-        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false, hasSeenOnboarding: true)
         let viewModel = await makeViewModel(userDefaults: defaults)
         let context = populatedGoalContextResponse.context!
         viewModel.goalSetupCompleted(context: context)
@@ -235,7 +287,7 @@ struct RootViewModelTests {
     @Test
     func cancelGoalRefinementWhenContextCachedRoutesBackToSteadyState() async {
         // Given
-        let defaults = makeTestUserDefaults(hasAskedForHealthKit: true)
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: true, hasSeenOnboarding: true)
         let viewModel = await makeViewModel(userDefaults: defaults)
         viewModel.goalSetupCompleted(context: populatedGoalContextResponse.context!)
 
@@ -250,7 +302,7 @@ struct RootViewModelTests {
     @Test
     func userRequestedGoalResetRoutesToGoalSetup() async {
         // Given
-        let defaults = makeTestUserDefaults(hasAskedForHealthKit: true)
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: true, hasSeenOnboarding: true)
         let viewModel = await makeViewModel(userDefaults: defaults)
 
         // When
@@ -263,7 +315,7 @@ struct RootViewModelTests {
     @Test
     func healthKitPermissionFinishedRoutesToDailyInsightAndPersistsAskedFlag() async {
         // Given
-        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false)
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: false, hasSeenOnboarding: true)
         let viewModel = await makeViewModel(userDefaults: defaults)
 
         // When
@@ -320,10 +372,11 @@ struct RootViewModelTests {
         )
     }
 
-    private func makeTestUserDefaults(hasAskedForHealthKit: Bool) -> UserDefaults {
+    private func makeTestUserDefaults(hasAskedForHealthKit: Bool, hasSeenOnboarding: Bool) -> UserDefaults {
         let suiteName = "RootViewModelTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.set(hasAskedForHealthKit, forKey: PreferenceKeys.hasAskedForHealthKitAuthorization)
+        defaults.set(hasSeenOnboarding, forKey: PreferenceKeys.hasSeenOnboarding)
         return defaults
     }
 }

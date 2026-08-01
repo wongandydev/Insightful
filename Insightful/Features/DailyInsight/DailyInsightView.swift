@@ -28,6 +28,16 @@ struct DailyInsightView: View {
                         insight: insight,
                         metricsPayload: viewModel.metricsPayload
                     )
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button {
+                                Task { await viewModel.load(force: true) }
+                            } label: {
+                                Image(systemName: "arrow.clockwise")
+                            }
+                            .accessibilityLabel("Regenerate today's insight")
+                        }
+                    }
                 case .noHealthData:
                     NoHealthDataState(
                         onOpenSettings: {
@@ -166,6 +176,11 @@ private struct InsightContent: View {
             Text(Date(), style: .date)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+            if let generatedAt = insight.generatedAtDate {
+                Text("Generated at \(generatedAt, format: .dateTime.hour().minute())")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

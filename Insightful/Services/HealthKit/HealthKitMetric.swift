@@ -110,6 +110,23 @@ enum HealthKitMetric: String, CaseIterable, Sendable {
         }
     }
 
+    /// Multiplier applied to raw HealthKit readings before they leave
+    /// ``HealthKitService``.
+    ///
+    /// `HKUnit.percent()` yields 0.0–1.0 fractions, but everything downstream
+    /// — the backend agent, the daily-insight cache, chart axes labelled "%"
+    /// — expects human percent values (18.7, not 0.187), so percent metrics
+    /// scale by 100. Every other metric's HKUnit already matches its display
+    /// unit and ships unchanged.
+    var wireScale: Double {
+        switch self {
+        case .bodyFatPercentage, .oxygenSaturation:
+            return 100
+        default:
+            return 1
+        }
+    }
+
     /// All HealthKit sample types this metric needs read permission for.
     /// Used when bundling the one-shot authorization request.
     var sampleTypes: Set<HKSampleType> {

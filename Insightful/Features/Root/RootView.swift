@@ -38,6 +38,10 @@ struct RootView: View {
             switch viewModel.route {
             case .launching:
                 LaunchView()
+            case .onboarding:
+                OnboardingView(
+                    onContinue: { viewModel.onboardingFinished() }
+                )
             case .goalSetup:
                 GoalSetupView(
                     goalService: goalService,

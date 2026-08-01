@@ -250,13 +250,20 @@ struct DTODecodingTests {
             "insightText": "Recovery is trending up.",
             "alerts": ["sleep dipped Tuesday"],
             "chartsToShow": ["heartRateVariabilitySDNN", "restingHeartRate"],
+            "chartMetadata": {
+              "heartRateVariabilitySDNN": {
+                "title": "Recovery is absorbing the load",
+                "rationale": "HRV has climbed three days straight."
+              }
+            },
             "recommendedActions": ["aim for 7.5h tonight"],
             "progress": {
               "daysUntilTarget": 130,
               "subgoals": [
                 { "text": "Sub-3 marathon", "target": "3h" }
               ]
-            }
+            },
+            "generatedAt": "2026-07-08T16:42:03.512Z"
           }
         }
         """
@@ -276,6 +283,36 @@ struct DTODecodingTests {
         #expect(response.insight.progress?.subgoals == [
             InsightSubgoalProgress(text: "Sub-3 marathon", target: "3h")
         ])
+        #expect(response.insight.generatedAt == "2026-07-08T16:42:03.512Z")
+        #expect(response.insight.generatedAtDate != nil)
+    }
+
+    @Test
+    func insightWhenGeneratedAtAbsentDecodesAsNilAndHidesFreshness() throws {
+        // Given
+        let json = """
+        {
+          "cached": true,
+          "insight": {
+            "insightText": "Steady.",
+            "alerts": [],
+            "chartsToShow": [],
+            "chartMetadata": {},
+            "recommendedActions": [],
+            "progress": null
+          }
+        }
+        """
+
+        // When
+        let response = try JSONCoding.decoder.decode(
+            InsightResponse.self,
+            from: Data(json.utf8)
+        )
+
+        // Then
+        #expect(response.insight.generatedAt == nil)
+        #expect(response.insight.generatedAtDate == nil)
     }
 
     @Test
@@ -288,6 +325,7 @@ struct DTODecodingTests {
             "insightText": "Steady.",
             "alerts": [],
             "chartsToShow": [],
+            "chartMetadata": {},
             "recommendedActions": [],
             "progress": null
           }

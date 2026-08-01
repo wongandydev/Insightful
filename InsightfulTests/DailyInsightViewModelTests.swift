@@ -24,7 +24,7 @@ struct DailyInsightViewModelTests {
     }
 
     @Test
-    func loadWhenHealthKitReturnsEmptyStillPosts() async {
+    func loadWhenHealthKitReturnsEmptyShortCircuitsToNoHealthData() async {
         // Given
         let healthKit = FakeHealthKitService()
         await healthKit.programReadDailyMetrics(.success([:]))
@@ -37,15 +37,49 @@ struct DailyInsightViewModelTests {
 
         // Then
         let calls = await insightService.generateCalls
-        #expect(calls.count == 1)
-        #expect(calls.first?.metrics.isEmpty == true)
+        #expect(viewModel.phase == .noHealthData)
+        #expect(calls.isEmpty)
+    }
+
+    @Test
+    func loadWhenDefaultDoesNotForceRegeneration() async {
+        // Given
+        let healthKit = FakeHealthKitService()
+        await healthKit.programReadDailyMetrics(.success(["sleepHours": .series([7.5, 8.0])]))
+        let insightService = FakeInsightService()
+        await insightService.programGenerate(.success(makeInsight()))
+        let viewModel = makeViewModel(healthKit: healthKit, insightService: insightService)
+
+        // When
+        await viewModel.load()
+
+        // Then
+        let calls = await insightService.generateCalls
+        #expect(calls.first?.force == false)
+    }
+
+    @Test
+    func loadWhenForcedPassesForceToService() async {
+        // Given
+        let healthKit = FakeHealthKitService()
+        await healthKit.programReadDailyMetrics(.success(["sleepHours": .series([7.5, 8.0])]))
+        let insightService = FakeInsightService()
+        await insightService.programGenerate(.success(makeInsight()))
+        let viewModel = makeViewModel(healthKit: healthKit, insightService: insightService)
+
+        // When
+        await viewModel.load(force: true)
+
+        // Then
+        let calls = await insightService.generateCalls
+        #expect(calls.first?.force == true)
     }
 
     @Test
     func loadWhenInsightServiceThrowsSetsErrorPhase() async {
         // Given
         let healthKit = FakeHealthKitService()
-        await healthKit.programReadDailyMetrics(.success([:]))
+        await healthKit.programReadDailyMetrics(.success(["sleepHours": .series([7.5, 8.0])]))
         let insightService = FakeInsightService()
         await insightService.programGenerate(.failure(FakeError.network))
         let viewModel = makeViewModel(healthKit: healthKit, insightService: insightService)
@@ -73,7 +107,8 @@ struct DailyInsightViewModelTests {
             chartsToShow: [],
             chartMetadata: [:],
             recommendedActions: [],
-            progress: nil
+            progress: nil,
+            generatedAt: nil
         )
     }
 

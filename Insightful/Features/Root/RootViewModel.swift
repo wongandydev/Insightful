@@ -17,11 +17,12 @@ private let logger = Logger(subsystem: "com.andy.Insightful", category: "RootVie
 final class RootViewModel {
     /// The currently-displayed top-level screen. Starts at ``RootRoute/launching``.
     private(set) var route: RootRoute
-    /// The most recent ``GoalContext`` handed up from goal setup. Kept so the
-    /// summary screen can re-render after re-entry and so downstream features
-    /// (e.g. the goal-aware HealthKit rationale) can read it without
-    /// re-fetching. `nil` until the user finishes their first goal-setup
-    /// conversation this launch.
+    /// The most recent ``GoalContext`` for this user. Hydrated by ``start()``
+    /// from `GET /goal/context` on every cold start and overwritten when goal
+    /// setup completes, so the summary screen can re-render after re-entry
+    /// and downstream features (e.g. the goal-aware HealthKit rationale) can
+    /// read it without re-fetching. `nil` only while launching or when the
+    /// user has never completed goal setup.
     private(set) var goalContext: GoalContext?
 
     private let authService: AuthService
@@ -136,10 +137,21 @@ final class RootViewModel {
         route = .goalSetup
     }
 
+    /// Called by ``OnboardingView``'s continue button. Records that the
+    /// explainer has been shown so it never reappears, then routes into the
+    /// goal-setup conversation it framed.
+    func onboardingFinished() {
+        userDefaults.set(true, forKey: PreferenceKeys.hasSeenOnboarding)
+        route = .goalSetup
+    }
+
     // MARK: - Internals
 
     private func decideRoute(hasGoalContext: Bool) -> RootRoute {
         if !hasGoalContext {
+            if !userDefaults.bool(forKey: PreferenceKeys.hasSeenOnboarding) {
+                return .onboarding
+            }
             return .goalSetup
         }
         if !userDefaults.bool(forKey: PreferenceKeys.hasAskedForHealthKitAuthorization) {
@@ -156,4 +168,8 @@ final class RootViewModel {
 /// "have we ever asked" ourselves to gate the permission screen.
 enum PreferenceKeys {
     static let hasAskedForHealthKitAuthorization = "hasAskedForHealthKitAuthorization"
+    /// Whether the one-time onboarding explainer has been shown. Set by
+    /// ``RootViewModel/onboardingFinished()``; never reset — onboarding only
+    /// frames the first goal-setup conversation.
+    static let hasSeenOnboarding = "hasSeenOnboarding"
 }

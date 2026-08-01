@@ -74,7 +74,6 @@ struct InsightChart: View {
         }
     }
 
-    // Need ot modify this in light mode the box is black and so is the text. 
     private func tooltip(forIndex index: Int) -> some View {
         VStack(spacing: 2) {
             Text(dayLabel(daysAgo: values.count - 1 - index))
@@ -82,10 +81,12 @@ struct InsightChart: View {
                 .foregroundStyle(.secondary)
             Text(formattedValue(values[index]))
                 .font(.caption.weight(.semibold))
+                .foregroundStyle(.primary)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.quaternary))
     }
 
     private func formattedValue(_ value: Double) -> String {
