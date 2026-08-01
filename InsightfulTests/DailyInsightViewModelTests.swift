@@ -121,6 +121,42 @@ struct DailyInsightViewModelTests {
     }
 
     @Test
+    func loadWhenInsightHasAlertsSchedulesFollowUpWithFirstAlert() async {
+        // Given
+        let healthKit = FakeHealthKitService()
+        await healthKit.programReadDailyMetrics(.success(["sleepHours": .series([5.1, 5.4])]))
+        let insightService = FakeInsightService()
+        await insightService.programGenerate(.success(makeInsight(alerts: ["Two short nights in a row", "HRV down 15%"])))
+        let notifications = FakeNotificationService()
+        let viewModel = makeViewModel(healthKit: healthKit, insightService: insightService, notifications: notifications)
+
+        // When
+        await viewModel.load()
+
+        // Then
+        let followUps = await notifications.alertFollowUps
+        #expect(followUps == ["Two short nights in a row"])
+    }
+
+    @Test
+    func loadWhenInsightHasNoAlertsSchedulesNothing() async {
+        // Given
+        let healthKit = FakeHealthKitService()
+        await healthKit.programReadDailyMetrics(.success(["sleepHours": .series([7.5, 8.0])]))
+        let insightService = FakeInsightService()
+        await insightService.programGenerate(.success(makeInsight()))
+        let notifications = FakeNotificationService()
+        let viewModel = makeViewModel(healthKit: healthKit, insightService: insightService, notifications: notifications)
+
+        // When
+        await viewModel.load()
+
+        // Then
+        let followUps = await notifications.alertFollowUps
+        #expect(followUps.isEmpty)
+    }
+
+    @Test
     func loadWhenInsightServiceThrowsSetsErrorPhase() async {
         // Given
         let healthKit = FakeHealthKitService()
@@ -140,15 +176,20 @@ struct DailyInsightViewModelTests {
 
     private func makeViewModel(
         healthKit: any HealthKitServicing,
-        insightService: any InsightServicing
+        insightService: any InsightServicing,
+        notifications: any NotificationScheduling = FakeNotificationService()
     ) -> DailyInsightViewModel {
-        DailyInsightViewModel(healthKitService: healthKit, insightService: insightService)
+        DailyInsightViewModel(
+            healthKitService: healthKit,
+            insightService: insightService,
+            notificationService: notifications
+        )
     }
 
-    private func makeInsight(text: String = "default text") -> Insight {
+    private func makeInsight(text: String = "default text", alerts: [String] = []) -> Insight {
         Insight(
             insightText: text,
-            alerts: [],
+            alerts: alerts,
             chartsToShow: [],
             chartMetadata: [:],
             recommendedActions: [],

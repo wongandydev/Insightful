@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Steady-state container shown once auth, goal setup, and the HealthKit
-/// prompt are behind the user. Hosts three tabs:
+/// prompt are behind the user. Hosts four tabs:
 ///
 /// 1. ``HomeView`` — the default tab; launches the daily insight as a sheet
 ///    and hosts the gear that opens Settings.
@@ -15,6 +15,7 @@ struct MainTabView: View {
     private let healthKitService: any HealthKitServicing
     private let insightService: any InsightServicing
     private let adviceService: any AdviceServicing
+    private let notificationService: any NotificationScheduling
     private let authService: AuthService
     private let goalContext: GoalContext?
     private let onSignedOut: () -> Void
@@ -25,6 +26,7 @@ struct MainTabView: View {
         healthKitService: any HealthKitServicing,
         insightService: any InsightServicing,
         adviceService: any AdviceServicing,
+        notificationService: any NotificationScheduling,
         authService: AuthService,
         goalContext: GoalContext?,
         onSignedOut: @escaping () -> Void,
@@ -34,6 +36,7 @@ struct MainTabView: View {
         self.healthKitService = healthKitService
         self.insightService = insightService
         self.adviceService = adviceService
+        self.notificationService = notificationService
         self.authService = authService
         self.goalContext = goalContext
         self.onSignedOut = onSignedOut
@@ -46,6 +49,7 @@ struct MainTabView: View {
             HomeView(
                 healthKitService: healthKitService,
                 insightService: insightService,
+                notificationService: notificationService,
                 authService: authService,
                 goalContext: goalContext,
                 onSignedOut: onSignedOut,

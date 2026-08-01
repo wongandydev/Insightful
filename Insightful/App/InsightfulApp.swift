@@ -8,6 +8,7 @@ struct InsightfulApp: App {
     private let insightService: InsightService
     private let adviceService: AdviceService
     private let healthKitService: HealthKitService
+    private let notificationService: NotificationService
     private let userDefaults: UserDefaults
 
     init() {
@@ -18,6 +19,7 @@ struct InsightfulApp: App {
         insightService = deps.insightService
         adviceService = deps.adviceService
         healthKitService = deps.healthKitService
+        notificationService = deps.notificationService
         userDefaults = deps.userDefaults
     }
 
@@ -30,6 +32,7 @@ struct InsightfulApp: App {
                 insightService: insightService,
                 adviceService: adviceService,
                 healthKitService: healthKitService,
+                notificationService: notificationService,
                 userDefaults: userDefaults
             )
         }

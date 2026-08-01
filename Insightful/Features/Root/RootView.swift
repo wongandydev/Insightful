@@ -11,6 +11,7 @@ struct RootView: View {
     private let insightService: InsightService
     private let adviceService: AdviceService
     private let healthKitService: HealthKitService
+    private let notificationService: NotificationService
 
     @State private var viewModel: RootViewModel
 
@@ -21,6 +22,7 @@ struct RootView: View {
         insightService: InsightService,
         adviceService: AdviceService,
         healthKitService: HealthKitService,
+        notificationService: NotificationService,
         userDefaults: UserDefaults
     ) {
         self.authService = authService
@@ -28,6 +30,7 @@ struct RootView: View {
         self.insightService = insightService
         self.adviceService = adviceService
         self.healthKitService = healthKitService
+        self.notificationService = notificationService
         _viewModel = State(initialValue: RootViewModel(
             authService: authService,
             userService: userService,
@@ -70,6 +73,7 @@ struct RootView: View {
                     healthKitService: healthKitService,
                     insightService: insightService,
                     adviceService: adviceService,
+                    notificationService: notificationService,
                     authService: authService,
                     goalContext: viewModel.goalContext,
                     onSignedOut: { Task { await viewModel.start() } },

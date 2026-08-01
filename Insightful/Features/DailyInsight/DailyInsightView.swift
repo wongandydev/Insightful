@@ -9,11 +9,13 @@ struct DailyInsightView: View {
 
     init(
         healthKitService: any HealthKitServicing,
-        insightService: any InsightServicing
+        insightService: any InsightServicing,
+        notificationService: any NotificationScheduling
     ) {
         _viewModel = State(initialValue: DailyInsightViewModel(
             healthKitService: healthKitService,
-            insightService: insightService
+            insightService: insightService,
+            notificationService: notificationService
         ))
     }
 

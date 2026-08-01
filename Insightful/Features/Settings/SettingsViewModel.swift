@@ -30,17 +30,30 @@ final class SettingsViewModel {
     private(set) var linkMessage: String?
     /// Validation or server error from the most recent ``linkAccount()``.
     private(set) var linkErrorMessage: String?
+    /// Whether the daily reminder is on. Rendered by the Notifications
+    /// toggle; mutate through ``setReminderEnabled(_:)`` so scheduling and
+    /// persistence stay in sync.
+    private(set) var reminderEnabled: Bool
+    /// The reminder's fire time as a `Date` (only hour/minute matter).
+    /// Mutate through ``setReminderTime(_:)``.
+    private(set) var reminderTime: Date
+    /// Set when the user flips the toggle on but iOS notification
+    /// permission is denied — the toggle snaps back and this explains why.
+    private(set) var notificationsDeniedMessage: String?
 
     private let authService: AuthService
+    private let notificationService: any NotificationScheduling
     private let onSignedOut: () -> Void
     private let onResetGoal: () -> Void
 
     init(
         authService: AuthService,
+        notificationService: any NotificationScheduling,
         onSignedOut: @escaping () -> Void,
         onResetGoal: @escaping () -> Void
     ) {
         self.authService = authService
+        self.notificationService = notificationService
         self.onSignedOut = onSignedOut
         self.onResetGoal = onResetGoal
         self.isSigningOut = false
@@ -51,6 +64,9 @@ final class SettingsViewModel {
         self.isLinking = false
         self.linkMessage = nil
         self.linkErrorMessage = nil
+        self.reminderEnabled = false
+        self.reminderTime = Self.date(hour: 8, minute: 0)
+        self.notificationsDeniedMessage = nil
     }
 
     /// Hydrates ``linkedEmail`` from the auth backend. Attach to the view's
@@ -87,6 +103,50 @@ final class SettingsViewModel {
         } catch {
             linkErrorMessage = "Couldn't create the account. Try again."
         }
+    }
+
+    /// Hydrates the reminder controls from the persisted preference. Attach
+    /// to the view's `.task`.
+    func loadReminderPreference() async {
+        let preference = await notificationService.dailyReminderPreference()
+        reminderEnabled = preference.enabled
+        reminderTime = Self.date(hour: preference.hour, minute: preference.minute)
+    }
+
+    /// Enables or disables the daily reminder. Enabling triggers the iOS
+    /// permission prompt on first use; a denial snaps the toggle back off
+    /// and sets ``notificationsDeniedMessage``.
+    func setReminderEnabled(_ enabled: Bool) async {
+        notificationsDeniedMessage = nil
+        if enabled {
+            let components = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)
+            let granted = await notificationService.enableDailyReminder(
+                hour: components.hour ?? 8,
+                minute: components.minute ?? 0
+            )
+            reminderEnabled = granted
+            if !granted {
+                notificationsDeniedMessage = "Notifications are off for Insightful. Enable them in Settings to get a daily reminder."
+            }
+        } else {
+            await notificationService.disableDailyReminder()
+            reminderEnabled = false
+        }
+    }
+
+    /// Updates the reminder's fire time and reschedules when it's enabled.
+    func setReminderTime(_ time: Date) async {
+        reminderTime = time
+        guard reminderEnabled else { return }
+        let components = Calendar.current.dateComponents([.hour, .minute], from: time)
+        _ = await notificationService.enableDailyReminder(
+            hour: components.hour ?? 8,
+            minute: components.minute ?? 0
+        )
+    }
+
+    private static func date(hour: Int, minute: Int) -> Date {
+        Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Date()) ?? Date()
     }
 
     /// Signs the current anonymous user out and notifies the parent.

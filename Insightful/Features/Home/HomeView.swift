@@ -11,6 +11,7 @@ struct HomeView: View {
     @State private var viewModel: HomeViewModel
     private let healthKitService: any HealthKitServicing
     private let insightService: any InsightServicing
+    private let notificationService: any NotificationScheduling
     private let authService: AuthService
     private let goalContext: GoalContext?
     private let onSignedOut: () -> Void
@@ -19,6 +20,7 @@ struct HomeView: View {
     init(
         healthKitService: any HealthKitServicing,
         insightService: any InsightServicing,
+        notificationService: any NotificationScheduling,
         authService: AuthService,
         goalContext: GoalContext?,
         onSignedOut: @escaping () -> Void,
@@ -26,13 +28,15 @@ struct HomeView: View {
     ) {
         self.healthKitService = healthKitService
         self.insightService = insightService
+        self.notificationService = notificationService
         self.authService = authService
         self.goalContext = goalContext
         self.onSignedOut = onSignedOut
         self.onResetGoal = onResetGoal
         _viewModel = State(initialValue: HomeViewModel(
             healthKitService: healthKitService,
-            insightService: insightService
+            insightService: insightService,
+            notificationService: notificationService
         ))
     }
 
@@ -54,13 +58,15 @@ struct HomeView: View {
                 .sheet(isPresented: $viewModel.isShowingInsight) {
                     DailyInsightView(
                         healthKitService: healthKitService,
-                        insightService: insightService
+                        insightService: insightService,
+                        notificationService: notificationService
                     )
                     .presentationDragIndicator(.visible)
                 }
                 .sheet(isPresented: $viewModel.isShowingSettings) {
                     SettingsView(
                         authService: authService,
+                        notificationService: notificationService,
                         goalContext: goalContext,
                         onSignedOut: {
                             viewModel.isShowingSettings = false
