@@ -118,6 +118,31 @@ struct HealthKitServiceTests {
         #expect(result.isEmpty)
     }
 
+    // MARK: - readWorkouts
+
+    @Test
+    func readWorkoutsReturnsReaderSummariesUnchanged() async throws {
+        // Given
+        let reader = FakeHealthKitReader()
+        let session = WorkoutSummary(
+            activityType: "cycling",
+            date: "2026-07-08",
+            durationMinutes: 90,
+            distanceKm: 42.0,
+            energyKcal: 810,
+            averageHeartRate: 142
+        )
+        await reader.programWorkouts(.returns([session]))
+        let service = HealthKitService(reader: reader)
+
+        // When
+        let result = try await service.readWorkouts(over: 7)
+
+        // Then
+        #expect(result == [session])
+        #expect(await reader.workoutReadIntervals.count == 1)
+    }
+
     // MARK: - readDailyMetrics: percent scaling
 
     @Test

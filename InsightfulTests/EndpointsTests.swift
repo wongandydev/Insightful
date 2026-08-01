@@ -82,6 +82,7 @@ struct EndpointsTests {
                 "vo2Max": .scalar(48.2),
                 "heartRateVariabilitySDNN": .series([52, 48, 61])
             ],
+            workouts: [],
             force: false
         )
         let body = try #require(endpoint.body)
@@ -93,6 +94,7 @@ struct EndpointsTests {
         #expect(json?["date"] as? String == "2026-05-13")
         #expect(metrics["vo2Max"] as? Double == 48.2)
         #expect(metrics["heartRateVariabilitySDNN"] as? [Double] == [52, 48, 61])
+        #expect(json?["workouts"] == nil)
     }
 
     @Test
@@ -101,10 +103,43 @@ struct EndpointsTests {
         let endpoint = try Endpoints.generateInsight(
             date: "2026-05-13",
             metrics: ["vo2Max": .scalar(48.2)],
+            workouts: [],
             force: true
         )
 
         // Then
         #expect(endpoint.path == "/insight?force=true")
+    }
+
+    @Test
+    func generateInsightWhenWorkoutsPresentSerializesSessionFields() throws {
+        // Given / When
+        let endpoint = try Endpoints.generateInsight(
+            date: "2026-05-13",
+            metrics: ["vo2Max": .scalar(48.2)],
+            workouts: [
+                WorkoutSummary(
+                    activityType: "running",
+                    date: "2026-05-12",
+                    durationMinutes: 62.5,
+                    distanceKm: 12.1,
+                    energyKcal: 640,
+                    averageHeartRate: nil
+                )
+            ],
+            force: false
+        )
+        let body = try #require(endpoint.body)
+        let json = try JSONSerialization.jsonObject(with: body) as? [String: Any]
+        let workouts = try #require(json?["workouts"] as? [[String: Any]])
+
+        // Then
+        #expect(workouts.count == 1)
+        #expect(workouts.first?["activityType"] as? String == "running")
+        #expect(workouts.first?["date"] as? String == "2026-05-12")
+        #expect(workouts.first?["durationMinutes"] as? Double == 62.5)
+        #expect(workouts.first?["distanceKm"] as? Double == 12.1)
+        #expect(workouts.first?["energyKcal"] as? Double == 640)
+        #expect(workouts.first?["averageHeartRate"] == nil)
     }
 }

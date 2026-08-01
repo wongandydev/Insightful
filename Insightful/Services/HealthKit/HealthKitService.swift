@@ -17,6 +17,10 @@ protocol HealthKitServicing: Sendable {
     /// outcome of read-permission decisions, so callers cannot infer granted
     /// vs denied from this method. Use Settings as the fallback in that case.
     func needsAuthorizationPrompt() async throws -> Bool
+
+    /// Reads every workout session in a trailing window of `days` calendar
+    /// days as ``WorkoutSummary`` values, oldest → newest.
+    func readWorkouts(over days: Int) async throws -> [WorkoutSummary]
 }
 
 /// Reads HealthKit and produces a `[String: MetricValue]` ready for
@@ -102,6 +106,19 @@ actor HealthKitService: HealthKitServicing {
             result[metric.rawValue] = metricValue
         }
         return result
+    }
+
+    /// Reads workout sessions for a trailing window of days.
+    ///
+    /// Uses the same local-midnight-anchored interval as
+    /// ``readDailyMetrics(over:metrics:)`` so a session and its same-day
+    /// aggregate metrics always cover the same window.
+    ///
+    /// - Parameter days: Size of the trailing window in calendar days.
+    /// - Returns: Sessions oldest → newest; empty when none were recorded.
+    /// - Throws: Anything ``HealthKitReading`` surfaces.
+    func readWorkouts(over days: Int) async throws -> [WorkoutSummary] {
+        try await reader.readWorkouts(in: trailingInterval(days: days))
     }
 
     // MARK: - Internals

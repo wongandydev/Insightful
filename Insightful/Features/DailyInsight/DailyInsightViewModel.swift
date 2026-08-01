@@ -68,9 +68,13 @@ final class DailyInsightViewModel {
                 return
             }
             metricsPayload = metrics
+            // Workouts enrich the insight but never block it — a failed
+            // session read degrades to the aggregate-only insight.
+            let workouts = (try? await healthKitService.readWorkouts(over: Self.trailingDays)) ?? []
             let insight = try await insightService.generate(
                 date: LocalCalendarDate.string(from: Date()),
                 metrics: metrics,
+                workouts: workouts,
                 force: force
             )
             phase = .ready(insight)

@@ -76,6 +76,51 @@ struct DailyInsightViewModelTests {
     }
 
     @Test
+    func loadWhenWorkoutsPresentPassesThemToService() async {
+        // Given
+        let healthKit = FakeHealthKitService()
+        await healthKit.programReadDailyMetrics(.success(["sleepHours": .series([7.5, 8.0])]))
+        let session = WorkoutSummary(
+            activityType: "running",
+            date: "2026-07-09",
+            durationMinutes: 45,
+            distanceKm: 8.2,
+            energyKcal: nil,
+            averageHeartRate: nil
+        )
+        await healthKit.programReadWorkouts(.success([session]))
+        let insightService = FakeInsightService()
+        await insightService.programGenerate(.success(makeInsight()))
+        let viewModel = makeViewModel(healthKit: healthKit, insightService: insightService)
+
+        // When
+        await viewModel.load()
+
+        // Then
+        let calls = await insightService.generateCalls
+        #expect(calls.first?.workouts == [session])
+    }
+
+    @Test
+    func loadWhenWorkoutReadThrowsStillGeneratesWithEmptyWorkouts() async {
+        // Given
+        let healthKit = FakeHealthKitService()
+        await healthKit.programReadDailyMetrics(.success(["sleepHours": .series([7.5, 8.0])]))
+        await healthKit.programReadWorkouts(.failure(FakeError.network))
+        let insightService = FakeInsightService()
+        await insightService.programGenerate(.success(makeInsight()))
+        let viewModel = makeViewModel(healthKit: healthKit, insightService: insightService)
+
+        // When
+        await viewModel.load()
+
+        // Then
+        let calls = await insightService.generateCalls
+        #expect(calls.count == 1)
+        #expect(calls.first?.workouts.isEmpty == true)
+    }
+
+    @Test
     func loadWhenInsightServiceThrowsSetsErrorPhase() async {
         // Given
         let healthKit = FakeHealthKitService()

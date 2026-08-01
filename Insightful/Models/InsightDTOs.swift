@@ -15,9 +15,28 @@ enum MetricValue: Encodable, Equatable {
     }
 }
 
+/// One HKWorkout session summarized for the backend. Optional fields are
+/// omitted from the JSON when `nil` — the server treats them as "not
+/// captured", mirroring how absent metrics are handled.
+struct WorkoutSummary: Codable, Equatable {
+    /// Backend-facing activity name (`running`, `cycling`, ...) produced by
+    /// ``HealthKitStoreReader``'s activity-type map; unmapped types are `other`.
+    let activityType: String
+    /// Local calendar date of the session start, `YYYY-MM-DD`.
+    let date: String
+    let durationMinutes: Double
+    let distanceKm: Double?
+    let energyKcal: Double?
+    /// Present only when HealthKit exposes heart-rate statistics for the
+    /// session — the app does not request the `.heartRate` read type itself.
+    let averageHeartRate: Double?
+}
+
 struct InsightRequest: Encodable, Equatable {
     let date: String
     let metrics: [String: MetricValue]
+    /// `nil` (omitted on the wire) when no workouts were recorded in the window.
+    let workouts: [WorkoutSummary]?
 }
 
 struct InsightResponse: Decodable, Equatable {
