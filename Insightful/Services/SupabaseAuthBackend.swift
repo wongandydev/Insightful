@@ -30,12 +30,18 @@ struct SupabaseAuthBackend: AuthBackend {
     }
 
     func currentSession() async throws -> AuthSession? {
-        // `client.session` throws when no cached session exists — that's the
-        // "no session" signal we want to surface as `nil`.
+        // `client.session` throws in two very different cases and only one
+        // means "no session": `AuthError.sessionMissing` (first launch /
+        // signed out). Any other throw — typically a failed network refresh
+        // of an expired token — must PROPAGATE. Mapping it to `nil` made
+        // `bootstrap()` sign in a fresh anonymous user, overwriting the
+        // Keychain session and orphaning the previous identity's data
+        // (observed 2026-06-04 as "rebuild produces a fresh user").
         do {
             return try await Self.adapt(client.session)
-        } catch {
-            return nil
+        } catch let error as AuthError {
+            if case .sessionMissing = error { return nil }
+            throw error
         }
     }
 
@@ -51,6 +57,14 @@ struct SupabaseAuthBackend: AuthBackend {
 
     func signOut() async throws {
         try await client.signOut()
+    }
+
+    func linkEmail(email: String, password: String) async throws {
+        try await client.update(user: UserAttributes(email: email, password: password))
+    }
+
+    func currentUserEmail() async -> String? {
+        client.currentUser?.email
     }
 
     private static func adapt(_ session: Session) -> AuthSession {

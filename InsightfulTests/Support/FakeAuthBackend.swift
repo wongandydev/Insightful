@@ -14,16 +14,21 @@ actor FakeAuthBackend: AuthBackend {
     private var signInResult: Scenario = .throws_(FakeError.notProgrammed)
     private var refreshResult: Scenario = .throws_(FakeError.notProgrammed)
     private var signOutResult: Result<Void, any Error & Sendable> = .success(())
+    private var linkEmailResult: Result<Void, any Error & Sendable> = .success(())
+    private var currentUserEmailResult: String? = nil
 
     private(set) var currentSessionCalls = 0
     private(set) var signInCalls = 0
     private(set) var refreshCalls = 0
     private(set) var signOutCalls = 0
+    private(set) var linkEmailCalls: [(email: String, password: String)] = []
 
     func programCurrentSession(_ scenario: Scenario) { currentSessionResult = scenario }
     func programSignIn(_ scenario: Scenario) { signInResult = scenario }
     func programRefresh(_ scenario: Scenario) { refreshResult = scenario }
     func programSignOut(_ result: Result<Void, any Error & Sendable>) { signOutResult = result }
+    func programLinkEmail(_ result: Result<Void, any Error & Sendable>) { linkEmailResult = result }
+    func programCurrentUserEmail(_ email: String?) { currentUserEmailResult = email }
 
     func currentSession() async throws -> AuthSession? {
         currentSessionCalls += 1
@@ -43,6 +48,15 @@ actor FakeAuthBackend: AuthBackend {
     func signOut() async throws {
         signOutCalls += 1
         try signOutResult.get()
+    }
+
+    func linkEmail(email: String, password: String) async throws {
+        linkEmailCalls.append((email: email, password: password))
+        try linkEmailResult.get()
+    }
+
+    func currentUserEmail() async -> String? {
+        currentUserEmailResult
     }
 
     private func unwrapOptional(_ scenario: Scenario) throws -> AuthSession? {

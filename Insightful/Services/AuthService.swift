@@ -52,5 +52,17 @@ final class AuthService {
         isReady = false
     }
 
+    /// Converts the current anonymous user to a permanent email + password
+    /// account. The user id — and therefore all saved goals and insights —
+    /// is preserved.
+    func linkEmail(email: String, password: String) async throws {
+        try await backend.linkEmail(email: email, password: password)
+    }
+
+    /// The linked email of the signed-in user, or `nil` while anonymous.
+    func linkedEmail() async -> String? {
+        await backend.currentUserEmail()
+    }
+
     var accessToken: String? { session?.accessToken }
 }

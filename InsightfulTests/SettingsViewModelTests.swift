@@ -75,7 +75,103 @@ struct SettingsViewModelTests {
         #expect(resetCount == 1)
     }
 
+    // MARK: - Account linking
+
+    @Test
+    func linkAccountWhenSucceedsSetsLinkedEmailAndClearsPassword() async {
+        // Given
+        let backend = FakeAuthBackend()
+        await backend.programLinkEmail(.success(()))
+        let viewModel = makeViewModel(backend: backend)
+        viewModel.linkEmailInput = "a@b.com"
+        viewModel.linkPasswordInput = "hunter22"
+
+        // When
+        await viewModel.linkAccount()
+
+        // Then
+        #expect(viewModel.linkedEmail == "a@b.com")
+        #expect(viewModel.linkPasswordInput.isEmpty)
+        #expect(viewModel.linkMessage != nil)
+        #expect(viewModel.linkErrorMessage == nil)
+    }
+
+    @Test
+    func linkAccountWhenBackendThrowsSurfacesErrorAndKeepsInputs() async {
+        // Given
+        let backend = FakeAuthBackend()
+        await backend.programLinkEmail(.failure(FakeError.network))
+        let viewModel = makeViewModel(backend: backend)
+        viewModel.linkEmailInput = "a@b.com"
+        viewModel.linkPasswordInput = "hunter22"
+
+        // When
+        await viewModel.linkAccount()
+
+        // Then
+        #expect(viewModel.linkedEmail == nil)
+        #expect(viewModel.linkErrorMessage != nil)
+        #expect(viewModel.linkEmailInput == "a@b.com")
+        #expect(viewModel.linkPasswordInput == "hunter22")
+    }
+
+    @Test
+    func linkAccountWhenEmailMalformedRejectsWithoutCallingBackend() async {
+        // Given
+        let backend = FakeAuthBackend()
+        let viewModel = makeViewModel(backend: backend)
+        viewModel.linkEmailInput = "not-an-email"
+        viewModel.linkPasswordInput = "hunter22"
+
+        // When
+        await viewModel.linkAccount()
+
+        // Then
+        let calls = await backend.linkEmailCalls
+        #expect(calls.isEmpty)
+        #expect(viewModel.linkErrorMessage != nil)
+    }
+
+    @Test
+    func linkAccountWhenPasswordTooShortRejectsWithoutCallingBackend() async {
+        // Given
+        let backend = FakeAuthBackend()
+        let viewModel = makeViewModel(backend: backend)
+        viewModel.linkEmailInput = "a@b.com"
+        viewModel.linkPasswordInput = "short"
+
+        // When
+        await viewModel.linkAccount()
+
+        // Then
+        let calls = await backend.linkEmailCalls
+        #expect(calls.isEmpty)
+        #expect(viewModel.linkErrorMessage != nil)
+    }
+
+    @Test
+    func loadLinkedEmailHydratesFromBackend() async {
+        // Given
+        let backend = FakeAuthBackend()
+        await backend.programCurrentUserEmail("me@example.com")
+        let viewModel = makeViewModel(backend: backend)
+
+        // When
+        await viewModel.loadLinkedEmail()
+
+        // Then
+        #expect(viewModel.linkedEmail == "me@example.com")
+    }
+
     // MARK: - Helpers
+
+    private func makeViewModel(backend: FakeAuthBackend) -> SettingsViewModel {
+        SettingsViewModel(
+            authService: AuthService(backend: backend),
+            onSignedOut: {},
+            onResetGoal: {}
+        )
+    }
 
     private var session: AuthSession {
         AuthSession(

@@ -31,4 +31,17 @@ protocol AuthBackend: Sendable {
     /// Sign the current user out and clear any SDK-side cached session.
     /// A subsequent `currentSession()` returns `nil`.
     func signOut() async throws
+
+    /// Attaches an email + password credential to the current (anonymous)
+    /// user, converting it to a permanent account while preserving the
+    /// user id — existing goal and insight rows stay attached.
+    ///
+    /// - Parameters:
+    ///   - email: The address to attach. When the Supabase project has email
+    ///     confirmation on, the change is pending until the user confirms.
+    ///   - password: The password for future sign-ins.
+    func linkEmail(email: String, password: String) async throws
+
+    /// The linked email of the current user, or `nil` for anonymous users.
+    func currentUserEmail() async -> String?
 }
