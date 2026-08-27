@@ -80,6 +80,21 @@ struct SupabaseAuthBackend: AuthBackend {
         return identities.contains { $0.provider == OpenIDConnectCredentials.Provider.apple.rawValue }
     }
 
+    func signIn(email: String, password: String) async throws -> AuthSession {
+        do {
+            return Self.adapt(try await client.signIn(email: email, password: password))
+        } catch let error as AuthError where error.errorCode == .invalidCredentials {
+            throw SignInError.invalidCredentials
+        }
+    }
+
+    func signInWithApple(idToken: String, nonce: String) async throws -> AuthSession {
+        let session = try await client.signInWithIdToken(
+            credentials: Self.appleCredentials(idToken: idToken, nonce: nonce)
+        )
+        return Self.adapt(session)
+    }
+
     private static func appleCredentials(idToken: String, nonce: String) -> OpenIDConnectCredentials {
         OpenIDConnectCredentials(provider: .apple, idToken: idToken, nonce: nonce)
     }

@@ -98,6 +98,12 @@ final class SettingsViewModel {
         appleLinked = authService.hasAppleIdentity()
     }
 
+    /// Whether an Apple ID or email is attached, i.e. whether signing out is
+    /// recoverable from the sign-in screen. Drives the sign-out warning copy.
+    var hasDurableIdentity: Bool {
+        appleLinked || linkedEmail != nil
+    }
+
     /// Generates the nonce for a Sign in with Apple request, retains its raw
     /// half for the token exchange, and opens the in-flight window that
     /// ``handleAppleAuthorization(_:)`` closes.
@@ -255,12 +261,12 @@ final class SettingsViewModel {
         Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Date()) ?? Date()
     }
 
-    /// Signs the current anonymous user out and notifies the parent.
+    /// Signs the current user out and notifies the parent.
     ///
-    /// On success the caller (RootView) re-runs the cold-start sequence,
-    /// which signs in a fresh anonymous user and routes the app through goal
-    /// setup again. On failure the user is left signed in and
-    /// ``errorMessage`` is populated.
+    /// On success the caller (RootView) routes to the sign-in screen, where a
+    /// user with a durable identity signs back into their own data and anyone
+    /// else can carry on anonymously. On failure the user is left signed in
+    /// and ``errorMessage`` is populated.
     func signOut() async {
         isSigningOut = true
         errorMessage = nil

@@ -48,6 +48,11 @@ struct RootView: View {
                 OnboardingView(
                     onContinue: { viewModel.onboardingFinished() }
                 )
+            case .signIn:
+                SignInView(
+                    authService: authService,
+                    onSignedIn: { Task { await viewModel.start() } }
+                )
             case .goalSetup:
                 GoalSetupView(
                     goalService: goalService,
@@ -76,7 +81,7 @@ struct RootView: View {
                     notificationService: notificationService,
                     authService: authService,
                     goalContext: viewModel.goalContext,
-                    onSignedOut: { Task { await viewModel.start() } },
+                    onSignedOut: { viewModel.signedOut() },
                     onResetGoal: { viewModel.userRequestedGoalReset() },
                     onEditGoal: { viewModel.goalSummaryRequestedEdit() }
                 )

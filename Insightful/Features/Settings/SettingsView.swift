@@ -3,8 +3,7 @@ import SwiftUI
 
 /// Bare-bones settings sheet. Surfaces the saved goal (with a path to refine
 /// it), the durable identities that can be attached to this user, and a
-/// sign-out action that the parent uses to trigger a full cold-start with a
-/// fresh anonymous user.
+/// sign-out action that drops the parent onto the sign-in screen.
 struct SettingsView: View {
     let goalContext: GoalContext?
     @State private var viewModel: SettingsViewModel
@@ -185,7 +184,11 @@ struct SettingsView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("You'll be signed in as a fresh user the next time the app opens.")
+                if viewModel.hasDurableIdentity {
+                    Text("Sign back in with your Apple ID or email to pick your goal and history back up.")
+                } else {
+                    Text("This device isn't connected to an account, so your goal and history can't be recovered afterwards.")
+                }
             }
         }
     }

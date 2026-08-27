@@ -78,5 +78,22 @@ final class AuthService {
         backend.hasAppleIdentity()
     }
 
+    /// Signs in an existing email + password account, replacing the current
+    /// session. Used by the sign-in screen to return a signed-out user to
+    /// their own data rather than a fresh anonymous identity.
+    ///
+    /// - Throws: ``SignInError/invalidCredentials`` when the pair is rejected.
+    func signIn(email: String, password: String) async throws {
+        session = try await backend.signIn(email: email, password: password)
+        isReady = true
+    }
+
+    /// Signs in the account that owns the Apple identity in `idToken`,
+    /// replacing the current session.
+    func signInWithApple(idToken: String, nonce: String) async throws {
+        session = try await backend.signInWithApple(idToken: idToken, nonce: nonce)
+        isReady = true
+    }
+
     var accessToken: String? { session?.accessToken }
 }
