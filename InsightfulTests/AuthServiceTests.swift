@@ -203,6 +203,30 @@ struct AuthServiceTests {
         #expect(service.accessToken == nil)
     }
 
+    // MARK: - Sign in with Apple
+
+    @Test
+    func linkAppleWhenIdentityAlreadyInUsePropagatesIdentityLinkError() async throws {
+        // Given
+        let backend = FakeAuthBackend()
+        await backend.programCurrentSession(.returns(initialSession))
+        await backend.programLinkApple(.failure(IdentityLinkError.identityAlreadyInUse))
+        let service = AuthService(backend: backend)
+        try await service.bootstrap()
+
+        // When
+        var captured: IdentityLinkError?
+        do {
+            try await service.linkApple(idToken: "id-token", nonce: "raw-nonce")
+        } catch let error as IdentityLinkError {
+            captured = error
+        }
+
+        // Then
+        #expect(captured == .identityAlreadyInUse)
+        #expect(service.session == initialSession)
+    }
+
     // MARK: - Helpers
 
     private func capturedError(_ block: () async throws -> Void) async -> FakeError? {

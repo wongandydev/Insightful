@@ -4,9 +4,9 @@ import Auth
 /// Production `AuthBackend` — a thin adapter over the Supabase `AuthClient`.
 ///
 /// The SDK already handles session persistence (built-in Keychain store on
-/// Apple platforms), proactive refresh, and crash-recovery. We only surface
-/// the three explicit operations our app initiates: read cache, sign in,
-/// force refresh.
+/// Apple platforms), proactive refresh, and crash-recovery. We surface only
+/// the operations our app initiates explicitly: read cache, sign in, force
+/// refresh, and attach or resolve a durable identity.
 ///
 /// We talk to `AuthClient` directly (not the umbrella `SupabaseClient`) since
 /// auth is the only Supabase product we use. Keeps the binary lean.
@@ -65,6 +65,23 @@ struct SupabaseAuthBackend: AuthBackend {
 
     func currentUserEmail() async -> String? {
         client.currentUser?.email
+    }
+
+    func linkApple(idToken: String, nonce: String) async throws {
+        do {
+            try await client.linkIdentityWithIdToken(credentials: Self.appleCredentials(idToken: idToken, nonce: nonce))
+        } catch let error as AuthError where error.errorCode == .identityAlreadyExists {
+            throw IdentityLinkError.identityAlreadyInUse
+        }
+    }
+
+    func hasAppleIdentity() -> Bool {
+        let identities = client.currentUser?.identities ?? []
+        return identities.contains { $0.provider == OpenIDConnectCredentials.Provider.apple.rawValue }
+    }
+
+    private static func appleCredentials(idToken: String, nonce: String) -> OpenIDConnectCredentials {
+        OpenIDConnectCredentials(provider: .apple, idToken: idToken, nonce: nonce)
     }
 
     private static func adapt(_ session: Session) -> AuthSession {

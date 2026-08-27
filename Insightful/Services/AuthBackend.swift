@@ -9,6 +9,15 @@ struct AuthSession: Codable, Equatable, Sendable {
     let expiresAt: Date
 }
 
+/// Failure modes of ``AuthBackend/linkApple(idToken:nonce:)`` that callers
+/// branch on.
+enum IdentityLinkError: Error, Equatable {
+    /// The Apple ID is already attached to an account. Whether that account is
+    /// this user's or someone else's is not distinguishable from the error
+    /// alone, so callers surface it and stop.
+    case identityAlreadyInUse
+}
+
 /// The narrow auth surface `AuthService` depends on.
 ///
 /// Production is `SupabaseAuthBackend`; tests use an `actor FakeAuthBackend`.
@@ -44,4 +53,18 @@ protocol AuthBackend: Sendable {
 
     /// The linked email of the current user, or `nil` for anonymous users.
     func currentUserEmail() async -> String?
+
+    /// Attaches an Apple identity to the current (anonymous) user, preserving
+    /// the user id — existing goal and insight rows stay attached.
+    ///
+    /// - Parameters:
+    ///   - idToken: The identity token from `ASAuthorizationAppleIDCredential`.
+    ///   - nonce: The raw nonce whose SHA-256 hash was sent on the Apple
+    ///     request.
+    /// - Throws: ``IdentityLinkError/identityAlreadyInUse`` when this Apple ID
+    ///   is already attached to an account.
+    func linkApple(idToken: String, nonce: String) async throws
+
+    /// Whether an Apple identity is attached to the current user.
+    func hasAppleIdentity() -> Bool
 }
