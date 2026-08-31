@@ -9,6 +9,24 @@ struct AuthSession: Codable, Equatable, Sendable {
     let expiresAt: Date
 }
 
+/// Failure modes of ``AuthBackend/linkApple(idToken:nonce:)`` that callers
+/// branch on.
+enum IdentityLinkError: Error, Equatable {
+    /// The Apple ID is already attached to an account. Whether that account is
+    /// this user's or someone else's is not distinguishable from the error
+    /// alone, so callers surface it and stop.
+    case identityAlreadyInUse
+}
+
+/// Failure modes of ``AuthBackend/signIn(email:password:)`` that callers
+/// branch on.
+enum SignInError: Error, Equatable {
+    /// The email/password pair was rejected. Covers a wrong password, an
+    /// unknown address, and an unconfirmed one — GoTrue deliberately returns
+    /// the same code for all three so the endpoint can't enumerate accounts.
+    case invalidCredentials
+}
+
 /// The narrow auth surface `AuthService` depends on.
 ///
 /// Production is `SupabaseAuthBackend`; tests use an `actor FakeAuthBackend`.
@@ -44,4 +62,41 @@ protocol AuthBackend: Sendable {
 
     /// The linked email of the current user, or `nil` for anonymous users.
     func currentUserEmail() async -> String?
+
+    /// Attaches an Apple identity to the current (anonymous) user, preserving
+    /// the user id — existing goal and insight rows stay attached.
+    ///
+    /// - Parameters:
+    ///   - idToken: The identity token from `ASAuthorizationAppleIDCredential`.
+    ///   - nonce: The raw nonce whose SHA-256 hash was sent on the Apple
+    ///     request.
+    /// - Throws: ``IdentityLinkError/identityAlreadyInUse`` when this Apple ID
+    ///   is already attached to an account.
+    func linkApple(idToken: String, nonce: String) async throws
+
+    /// Whether an Apple identity is attached to the current user.
+    func hasAppleIdentity() -> Bool
+
+    /// Signs in the account that owns `email`, replacing any cached session.
+    ///
+    /// - Parameters:
+    ///   - email: The address attached to the account.
+    ///   - password: The account's password.
+    /// - Returns: The new session.
+    /// - Throws: ``SignInError/invalidCredentials`` when the pair is rejected.
+    func signIn(email: String, password: String) async throws -> AuthSession
+
+    /// Signs in the account that owns the Apple identity in `idToken`,
+    /// replacing any cached session.
+    ///
+    /// Unlike ``linkApple(idToken:nonce:)`` this attaches nothing to the
+    /// current user — it resolves the token to whichever account already owns
+    /// that Apple ID, creating one when none does.
+    ///
+    /// - Parameters:
+    ///   - idToken: The identity token from `ASAuthorizationAppleIDCredential`.
+    ///   - nonce: The raw nonce whose SHA-256 hash was sent on the Apple
+    ///     request.
+    /// - Returns: The new session.
+    func signInWithApple(idToken: String, nonce: String) async throws -> AuthSession
 }

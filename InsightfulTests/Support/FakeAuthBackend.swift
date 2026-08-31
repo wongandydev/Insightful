@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 @testable import Insightful
 
 /// Scriptable auth backend for `AuthServiceTests`. Each operation can be
@@ -16,12 +17,21 @@ actor FakeAuthBackend: AuthBackend {
     private var signOutResult: Result<Void, any Error & Sendable> = .success(())
     private var linkEmailResult: Result<Void, any Error & Sendable> = .success(())
     private var currentUserEmailResult: String? = nil
+    private var linkAppleResult: Result<Void, any Error & Sendable> = .success(())
+    private var signInEmailResult: Scenario = .throws_(FakeError.notProgrammed)
+    private var signInAppleResult: Scenario = .throws_(FakeError.notProgrammed)
+    /// Held outside actor isolation: `hasAppleIdentity()` is a synchronous
+    /// protocol requirement, so it cannot reach the actor's state.
+    private let hasAppleIdentityResult = Mutex(false)
 
     private(set) var currentSessionCalls = 0
     private(set) var signInCalls = 0
     private(set) var refreshCalls = 0
     private(set) var signOutCalls = 0
     private(set) var linkEmailCalls: [(email: String, password: String)] = []
+    private(set) var linkAppleCalls: [(idToken: String, nonce: String)] = []
+    private(set) var signInEmailCalls: [(email: String, password: String)] = []
+    private(set) var signInAppleCalls: [(idToken: String, nonce: String)] = []
 
     func programCurrentSession(_ scenario: Scenario) { currentSessionResult = scenario }
     func programSignIn(_ scenario: Scenario) { signInResult = scenario }
@@ -29,6 +39,10 @@ actor FakeAuthBackend: AuthBackend {
     func programSignOut(_ result: Result<Void, any Error & Sendable>) { signOutResult = result }
     func programLinkEmail(_ result: Result<Void, any Error & Sendable>) { linkEmailResult = result }
     func programCurrentUserEmail(_ email: String?) { currentUserEmailResult = email }
+    func programLinkApple(_ result: Result<Void, any Error & Sendable>) { linkAppleResult = result }
+    func programHasAppleIdentity(_ linked: Bool) { hasAppleIdentityResult.withLock { $0 = linked } }
+    func programSignInEmail(_ scenario: Scenario) { signInEmailResult = scenario }
+    func programSignInApple(_ scenario: Scenario) { signInAppleResult = scenario }
 
     func currentSession() async throws -> AuthSession? {
         currentSessionCalls += 1
@@ -57,6 +71,25 @@ actor FakeAuthBackend: AuthBackend {
 
     func currentUserEmail() async -> String? {
         currentUserEmailResult
+    }
+
+    func linkApple(idToken: String, nonce: String) async throws {
+        linkAppleCalls.append((idToken: idToken, nonce: nonce))
+        try linkAppleResult.get()
+    }
+
+    func signIn(email: String, password: String) async throws -> AuthSession {
+        signInEmailCalls.append((email: email, password: password))
+        return try unwrapRequired(signInEmailResult)
+    }
+
+    func signInWithApple(idToken: String, nonce: String) async throws -> AuthSession {
+        signInAppleCalls.append((idToken: idToken, nonce: nonce))
+        return try unwrapRequired(signInAppleResult)
+    }
+
+    nonisolated func hasAppleIdentity() -> Bool {
+        hasAppleIdentityResult.withLock { $0 }
     }
 
     private func unwrapOptional(_ scenario: Scenario) throws -> AuthSession? {

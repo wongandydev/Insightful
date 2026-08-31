@@ -1,3 +1,4 @@
+import AuthenticationServices
 import Foundation
 import Observation
 
@@ -17,7 +18,8 @@ final class SettingsViewModel {
     private(set) var errorMessage: String?
     /// The email attached to the current user, or `nil` while anonymous.
     /// Hydrated by ``loadLinkedEmail()``; set optimistically on a successful
-    /// ``linkAccount()``.
+    /// ``linkAccount()`` and refreshed after a successful
+    /// ``completeAppleSignIn(idToken:)``, which attaches the Apple ID's email.
     private(set) var linkedEmail: String?
     /// Two-way bound to the create-account email field.
     var linkEmailInput: String
@@ -40,6 +42,17 @@ final class SettingsViewModel {
     /// Set when the user flips the toggle on but iOS notification
     /// permission is denied — the toggle snaps back and this explains why.
     private(set) var notificationsDeniedMessage: String?
+    /// Whether an Apple identity is attached to the current user. Hydrated by
+    /// ``loadAppleIdentity()``.
+    private(set) var appleLinked: Bool
+    /// `true` while a Sign in with Apple exchange is in flight.
+    private(set) var isLinkingApple: Bool
+    /// Confirmation after a successful Apple link.
+    private(set) var appleMessage: String?
+    /// Error from the most recent Sign in with Apple attempt.
+    private(set) var appleErrorMessage: String?
+
+    private var nonces = AppleNonceStore()
 
     private let authService: AuthService
     private let notificationService: any NotificationScheduling
@@ -67,12 +80,111 @@ final class SettingsViewModel {
         self.reminderEnabled = false
         self.reminderTime = Self.date(hour: 8, minute: 0)
         self.notificationsDeniedMessage = nil
+        self.appleLinked = false
+        self.isLinkingApple = false
+        self.appleMessage = nil
+        self.appleErrorMessage = nil
     }
 
     /// Hydrates ``linkedEmail`` from the auth backend. Attach to the view's
     /// `.task`.
     func loadLinkedEmail() async {
         linkedEmail = await authService.linkedEmail()
+    }
+
+    /// Hydrates ``appleLinked`` from the auth backend. Attach to the view's
+    /// `.task`.
+    func loadAppleIdentity() {
+        appleLinked = authService.hasAppleIdentity()
+    }
+
+    /// Whether an Apple ID or email is attached, i.e. whether signing out is
+    /// recoverable from the sign-in screen. Drives the sign-out warning copy.
+    var hasDurableIdentity: Bool {
+        appleLinked || linkedEmail != nil
+    }
+
+    /// Generates the nonce for a Sign in with Apple request, retains its raw
+    /// half for the token exchange, and opens the in-flight window that
+    /// ``handleAppleAuthorization(_:)`` closes.
+    ///
+    /// Marking the flow in flight here rather than on the exchange is what
+    /// keeps a second tap from replacing the nonce the pending request will be
+    /// verified against.
+    ///
+    /// - Returns: The hashed value to set on
+    ///   `ASAuthorizationAppleIDRequest.nonce`.
+    func appleRequestNonce() -> String {
+        isLinkingApple = true
+        return nonces.begin()
+    }
+
+    /// Unwraps the result of a Sign in with Apple request and hands its
+    /// identity token to ``completeAppleSignIn(idToken:)``.
+    ///
+    /// Closes the in-flight window ``appleRequestNonce()`` opened and discards
+    /// the nonce on every path, so a cancelled or failed attempt leaves no raw
+    /// nonce resident for a later exchange to spend.
+    func handleAppleAuthorization(_ result: Result<ASAuthorization, any Error>) async {
+        defer {
+            nonces.discard()
+            isLinkingApple = false
+        }
+        appleErrorMessage = nil
+        appleMessage = nil
+        switch result {
+        case .success(let authorization):
+            guard let idToken = Self.identityToken(from: authorization) else {
+                appleErrorMessage = "Apple didn't return a usable credential. Try again."
+                return
+            }
+            await completeAppleSignIn(idToken: idToken)
+        case .failure(let error):
+            // A user-cancelled sheet is not an error worth surfacing.
+            if (error as? ASAuthorizationError)?.code != .canceled {
+                appleErrorMessage = "Couldn't connect your Apple ID. Try again."
+            }
+        }
+    }
+
+    /// Attaches `idToken` to the current user, consuming the nonce from the
+    /// matching ``appleRequestNonce()`` call.
+    ///
+    /// An Apple ID that already owns an account cannot be attached to this
+    /// one, and the two cannot be merged, so that case surfaces as an error
+    /// and the current user is left as they were.
+    ///
+    /// The nonce is spent whether or not the exchange succeeds — a retry goes
+    /// back through ``appleRequestNonce()`` for a fresh one.
+    func completeAppleSignIn(idToken: String) async {
+        appleErrorMessage = nil
+        appleMessage = nil
+        guard !authService.hasAppleIdentity() else {
+            appleLinked = true
+            return
+        }
+        guard let nonce = nonces.spend() else {
+            appleErrorMessage = "Couldn't connect your Apple ID. Try again."
+            return
+        }
+        do {
+            try await authService.linkApple(idToken: idToken, nonce: nonce)
+            appleLinked = true
+            await loadLinkedEmail()
+            appleMessage = "Apple ID connected. Your goal and history follow you to any device signed in to it."
+        } catch IdentityLinkError.identityAlreadyInUse {
+            appleErrorMessage = "This Apple ID is already connected to an Insightful account. Accounts can't be merged, so this device's goal and history can't move to it."
+        } catch {
+            appleErrorMessage = "Couldn't connect your Apple ID. Try again."
+        }
+    }
+
+    private static func identityToken(from authorization: ASAuthorization) -> String? {
+        guard
+            let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+            let data = credential.identityToken
+        else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 
     /// Converts the anonymous user to an email + password account,
@@ -149,12 +261,12 @@ final class SettingsViewModel {
         Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Date()) ?? Date()
     }
 
-    /// Signs the current anonymous user out and notifies the parent.
+    /// Signs the current user out and notifies the parent.
     ///
-    /// On success the caller (RootView) is expected to re-run the cold-start
-    /// sequence, which will sign in a fresh anonymous user and route the
-    /// app through goal setup again. On failure the user is left signed
-    /// in and ``errorMessage`` is populated.
+    /// On success the caller (RootView) routes to the sign-in screen, where a
+    /// user with a durable identity signs back into their own data and anyone
+    /// else can carry on anonymously. On failure the user is left signed in
+    /// and ``errorMessage`` is populated.
     func signOut() async {
         isSigningOut = true
         errorMessage = nil

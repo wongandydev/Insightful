@@ -1,13 +1,15 @@
+import AuthenticationServices
 import SwiftUI
 
 /// Bare-bones settings sheet. Surfaces the saved goal (with a path to refine
-/// it) and a sign-out action that the parent uses to trigger a full
-/// cold-start with a fresh anonymous user.
+/// it), the durable identities that can be attached to this user, and a
+/// sign-out action that drops the parent onto the sign-in screen.
 struct SettingsView: View {
     let goalContext: GoalContext?
     @State private var viewModel: SettingsViewModel
     @State private var showSignOutConfirmation = false
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     init(
         authService: AuthService,
@@ -72,6 +74,34 @@ struct SettingsView: View {
                     }
                 }
                 Section("Account") {
+                    if !viewModel.appleLinked && viewModel.linkedEmail == nil {
+                        Text("You're anonymous — connect an Apple ID so your goal and history survive a new phone.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    if viewModel.appleLinked {
+                        LabeledContent("Apple ID", value: "Connected")
+                    } else {
+                        SignInWithAppleButton(.continue) { request in
+                            request.requestedScopes = [.email]
+                            request.nonce = viewModel.appleRequestNonce()
+                        } onCompletion: { result in
+                            Task { await viewModel.handleAppleAuthorization(result) }
+                        }
+                        .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+                        .frame(height: 44)
+                        .disabled(viewModel.isLinkingApple)
+                    }
+                    if let appleMessage = viewModel.appleMessage {
+                        Text(appleMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let appleError = viewModel.appleErrorMessage {
+                        Text(appleError)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
                     if let linkedEmail = viewModel.linkedEmail {
                         LabeledContent("Signed in as", value: linkedEmail)
                         if let linkMessage = viewModel.linkMessage {
@@ -80,7 +110,7 @@ struct SettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     } else {
-                        Text("You're anonymous — create an account so your goal and history survive a new phone.")
+                        Text("Add an email to sign in on platforms without Apple ID.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                         TextField("Email", text: $viewModel.linkEmailInput)
@@ -135,6 +165,7 @@ struct SettingsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .task {
                 await viewModel.loadLinkedEmail()
+                viewModel.loadAppleIdentity()
                 await viewModel.loadReminderPreference()
             }
             .toolbar {
@@ -153,7 +184,11 @@ struct SettingsView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("You'll be signed in as a fresh user the next time the app opens.")
+                if viewModel.hasDurableIdentity {
+                    Text("Sign back in with your Apple ID or email to pick your goal and history back up.")
+                } else {
+                    Text("This device isn't connected to an account, so your goal and history can't be recovered afterwards.")
+                }
             }
         }
     }
