@@ -46,7 +46,11 @@ final class RootViewModel {
 
     /// Runs the cold-start sequence and sets ``route`` accordingly.
     ///
-    /// 1. Bootstrap the Supabase session via ``AuthService/bootstrap()``.
+    /// 1. Bootstrap the Supabase session via ``AuthService/bootstrap()``. A
+    ///    ``BootstrapOutcome/sessionLost`` result short-circuits to
+    ///    ``RootRoute/signIn`` — the identity behind the saved data still
+    ///    exists server-side, so signing in reaches it, while continuing
+    ///    anonymously would abandon it.
     /// 2. Upsert the user row via ``UserService/sync()``.
     /// 3. Fetch the saved goal context via ``GoalService/getContext()``.
     /// 4. Pick a route: missing context → ``RootRoute/goalSetup``; have
@@ -62,7 +66,11 @@ final class RootViewModel {
         logger.info("start: beginning cold-start sequence")
         do {
             logger.info("start: step 1/3 — auth bootstrap")
-            try await authService.bootstrap()
+            if try await authService.bootstrap() == .sessionLost {
+                logger.info("start: previous session terminated server-side → sign-in")
+                route = .signIn
+                return
+            }
 
             logger.info("start: step 2/3 — user sync")
             let userId = try await userService.sync()

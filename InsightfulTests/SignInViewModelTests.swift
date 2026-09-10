@@ -121,19 +121,38 @@ struct SignInViewModelTests {
     }
 
     @Test
-    func continueAnonymouslyNotifiesParentWithoutSigningIn() async {
+    func continueAnonymouslySignsInAnonymouslyThenNotifiesParent() async {
         // Given
         let backend = FakeAuthBackend()
+        await backend.programSignIn(.returns(session))
         var signedInCount = 0
         let viewModel = makeViewModel(backend: backend, onSignedIn: { signedInCount += 1 })
 
         // When
-        viewModel.continueAnonymously()
+        await viewModel.continueAnonymously()
+
+        // Then — the screen mints the identity itself; `bootstrap()` reports
+        // `.sessionLost` on this device and would route straight back here.
+        #expect(await backend.signInCalls == 1)
+        #expect(signedInCount == 1)
+        #expect(await backend.signInEmailCalls.isEmpty)
+    }
+
+    @Test("continueAnonymously surfaces an error and does not advance when sign-in fails")
+    func continueAnonymouslyFailureKeepsUserOnScreen() async {
+        // Given
+        let backend = FakeAuthBackend()
+        await backend.programSignIn(.throws_(FakeError.notProgrammed))
+        var signedInCount = 0
+        let viewModel = makeViewModel(backend: backend, onSignedIn: { signedInCount += 1 })
+
+        // When
+        await viewModel.continueAnonymously()
 
         // Then
-        #expect(signedInCount == 1)
-        #expect(await backend.signInCalls == 0)
-        #expect(await backend.signInEmailCalls.isEmpty)
+        #expect(signedInCount == 0)
+        #expect(viewModel.errorMessage == "Couldn't continue. Try again.")
+        #expect(viewModel.isWorking == false)
     }
 
     // MARK: - Helpers
@@ -143,7 +162,7 @@ struct SignInViewModelTests {
         onSignedIn: @escaping () -> Void
     ) -> SignInViewModel {
         SignInViewModel(
-            authService: AuthService(backend: backend),
+            authService: AuthService(backend: backend, userDefaults: ephemeralDefaults()),
             onSignedIn: onSignedIn
         )
     }

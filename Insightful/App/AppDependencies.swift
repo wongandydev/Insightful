@@ -27,7 +27,7 @@ struct AppDependencies {
     /// importing the other.
     static func live() -> AppDependencies {
         let authBackend = SupabaseAuthBackend(url: SupabaseConfig.url, anonKey: SupabaseConfig.anonKey)
-        let authService = AuthService(backend: authBackend)
+        let authService = AuthService(backend: authBackend, userDefaults: .standard)
         let apiClient = APIClient(
             baseURL: APIConfig.baseURL,
             httpClient: URLSession.shared,
