@@ -106,12 +106,22 @@ final class SignInViewModel {
         }
     }
 
-    /// Carries on without an account. The cold-start sequence the callback
-    /// triggers finds no cached session and signs in a fresh anonymous user,
-    /// which is where a brand-new install starts too.
-    func continueAnonymously() {
+    /// Carries on without an account, abandoning any identity this device
+    /// previously held. Signs in anonymously here rather than letting the
+    /// cold-start sequence do it: ``AuthService/bootstrap()`` reports
+    /// ``BootstrapOutcome/sessionLost`` for a device that has authenticated
+    /// before, which is what routed the user to this screen, so relying on it
+    /// would loop straight back here.
+    func continueAnonymously() async {
         errorMessage = nil
-        onSignedIn()
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            try await authService.continueAnonymously()
+            onSignedIn()
+        } catch {
+            errorMessage = "Couldn't continue. Try again."
+        }
     }
 
     private static func identityToken(from authorization: ASAuthorization) -> String? {

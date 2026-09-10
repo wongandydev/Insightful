@@ -14,8 +14,8 @@ struct SettingsViewModelTests {
         let backend = FakeAuthBackend()
         await backend.programCurrentSession(.returns(session))
         await backend.programSignOut(.success(()))
-        let authService = AuthService(backend: backend)
-        try? await authService.bootstrap()
+        let authService = AuthService(backend: backend, userDefaults: ephemeralDefaults())
+        _ = try? await authService.bootstrap()
         var signedOutCount = 0
         let viewModel = SettingsViewModel(
             authService: authService,
@@ -41,8 +41,8 @@ struct SettingsViewModelTests {
         let backend = FakeAuthBackend()
         await backend.programCurrentSession(.returns(session))
         await backend.programSignOut(.failure(FakeError.network))
-        let authService = AuthService(backend: backend)
-        try? await authService.bootstrap()
+        let authService = AuthService(backend: backend, userDefaults: ephemeralDefaults())
+        _ = try? await authService.bootstrap()
         var signedOutCount = 0
         let viewModel = SettingsViewModel(
             authService: authService,
@@ -64,7 +64,7 @@ struct SettingsViewModelTests {
     func resetGoalCallsOnResetGoal() async {
         // Given
         let backend = FakeAuthBackend()
-        let authService = AuthService(backend: backend)
+        let authService = AuthService(backend: backend, userDefaults: ephemeralDefaults())
         var resetCount = 0
         let viewModel = SettingsViewModel(
             authService: authService,
@@ -452,7 +452,7 @@ struct SettingsViewModelTests {
         notifications: any NotificationScheduling = FakeNotificationService()
     ) -> SettingsViewModel {
         SettingsViewModel(
-            authService: AuthService(backend: backend),
+            authService: AuthService(backend: backend, userDefaults: ephemeralDefaults()),
             notificationService: notifications,
             onSignedOut: {},
             onResetGoal: {}

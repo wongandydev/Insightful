@@ -39,7 +39,7 @@ struct SignInView: View {
                 }
                 Divider()
                 Button("Continue without an account") {
-                    viewModel.continueAnonymously()
+                    Task { await viewModel.continueAnonymously() }
                 }
                 .font(.subheadline)
                 .disabled(viewModel.isWorking)

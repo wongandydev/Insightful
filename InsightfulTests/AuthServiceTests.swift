@@ -20,16 +20,89 @@ struct AuthServiceTests {
 
     // MARK: - Bootstrap
 
+    @Test("bootstrap reports .ready on a device that has never authenticated")
+    func bootstrapOnFirstLaunchReportsReady() async throws {
+        // Given
+        let backend = FakeAuthBackend()
+        await backend.programCurrentSession(.returnsNil)
+        await backend.programSignIn(.returns(initialSession))
+        let service = AuthService(backend: backend, userDefaults: ephemeralDefaults())
+
+        // When
+        let outcome = try await service.bootstrap()
+
+        // Then
+        #expect(outcome == .ready)
+    }
+
+    @Test("bootstrap offers sign-in rather than a replacement identity when a known device loses its session")
+    func bootstrapWhenKnownDeviceLosesSessionReportsSessionLost() async throws {
+        // Given — a first launch that created an anonymous identity.
+        let defaults = ephemeralDefaults()
+        let backend = FakeAuthBackend()
+        await backend.programCurrentSession(.returnsNil)
+        await backend.programSignIn(.returns(initialSession))
+        _ = try await AuthService(backend: backend, userDefaults: defaults).bootstrap()
+
+        // When — the server terminated that session, so the SDK reports none.
+        let relaunched = AuthService(backend: backend, userDefaults: defaults)
+        let outcome = try await relaunched.bootstrap()
+
+        // Then — no second identity is minted; the first one's data stays reachable.
+        #expect(outcome == .sessionLost)
+        #expect(await backend.signInCalls == 1)
+        #expect(relaunched.session == nil)
+        #expect(relaunched.isReady == false)
+    }
+
+    @Test("continueAnonymously mints a new identity after a lost session")
+    func continueAnonymouslyAfterSessionLossSignsIn() async throws {
+        // Given
+        let defaults = ephemeralDefaults()
+        let backend = FakeAuthBackend()
+        await backend.programCurrentSession(.returnsNil)
+        await backend.programSignIn(.returns(initialSession))
+        _ = try await AuthService(backend: backend, userDefaults: defaults).bootstrap()
+        let relaunched = AuthService(backend: backend, userDefaults: defaults)
+        #expect(try await relaunched.bootstrap() == .sessionLost)
+
+        // When
+        try await relaunched.continueAnonymously()
+
+        // Then
+        #expect(relaunched.session == initialSession)
+        #expect(relaunched.isReady)
+        #expect(await backend.signInCalls == 2)
+    }
+
+    @Test("signing out leaves the device known, so the next launch offers sign-in")
+    func bootstrapAfterSignOutReportsSessionLost() async throws {
+        // Given
+        let defaults = ephemeralDefaults()
+        let backend = FakeAuthBackend()
+        await backend.programCurrentSession(.returnsNil)
+        await backend.programSignIn(.returns(initialSession))
+        let service = AuthService(backend: backend, userDefaults: defaults)
+        _ = try await service.bootstrap()
+        try await service.signOut()
+
+        // When
+        let outcome = try await AuthService(backend: backend, userDefaults: defaults).bootstrap()
+
+        // Then
+        #expect(outcome == .sessionLost)
+    }
+
     @Test
     func bootstrapWhenNoCachedSessionSignsInAnonymously() async throws {
         // Given
         let backend = FakeAuthBackend()
         await backend.programCurrentSession(.returnsNil)
         await backend.programSignIn(.returns(initialSession))
-        let service = AuthService(backend: backend)
+        let service = AuthService(backend: backend, userDefaults: ephemeralDefaults())
 
         // When
-        try await service.bootstrap()
+        _ = try await service.bootstrap()
 
         // Then
         #expect(service.session == initialSession)
@@ -43,10 +116,10 @@ struct AuthServiceTests {
         // Given
         let backend = FakeAuthBackend()
         await backend.programCurrentSession(.returns(initialSession))
-        let service = AuthService(backend: backend)
+        let service = AuthService(backend: backend, userDefaults: ephemeralDefaults())
 
         // When
-        try await service.bootstrap()
+        _ = try await service.bootstrap()
 
         // Then
         #expect(service.session == initialSession)
@@ -62,12 +135,12 @@ struct AuthServiceTests {
         let backend = FakeAuthBackend()
         await backend.programCurrentSession(.throws_(FakeError.network))
         await backend.programSignIn(.returns(initialSession))
-        let service = AuthService(backend: backend)
+        let service = AuthService(backend: backend, userDefaults: ephemeralDefaults())
 
         // When
         let threw: Bool
         do {
-            try await service.bootstrap()
+            _ = try await service.bootstrap()
             threw = false
         } catch {
             threw = true
@@ -85,7 +158,7 @@ struct AuthServiceTests {
         // Given
         let backend = FakeAuthBackend()
         await backend.programLinkEmail(.success(()))
-        let service = AuthService(backend: backend)
+        let service = AuthService(backend: backend, userDefaults: ephemeralDefaults())
 
         // When
         try await service.linkEmail(email: "a@b.com", password: "hunter22")
@@ -103,10 +176,10 @@ struct AuthServiceTests {
         let backend = FakeAuthBackend()
         await backend.programCurrentSession(.returnsNil)
         await backend.programSignIn(.throws_(FakeError.network))
-        let service = AuthService(backend: backend)
+        let service = AuthService(backend: backend, userDefaults: ephemeralDefaults())
 
         // When
-        let error = await capturedError { try await service.bootstrap() }
+        let error = await capturedError { _ = try await service.bootstrap() }
 
         // Then
         #expect(error == FakeError.network)
@@ -122,8 +195,8 @@ struct AuthServiceTests {
         let backend = FakeAuthBackend()
         await backend.programCurrentSession(.returns(initialSession))
         await backend.programRefresh(.returns(refreshedSession))
-        let service = AuthService(backend: backend)
-        try await service.bootstrap()
+        let service = AuthService(backend: backend, userDefaults: ephemeralDefaults())
+        _ = try await service.bootstrap()
 
         // When
         try await service.refresh()
@@ -143,8 +216,8 @@ struct AuthServiceTests {
         let backend = FakeAuthBackend()
         await backend.programCurrentSession(.returns(initialSession))
         await backend.programRefresh(.throws_(FakeError.network))
-        let service = AuthService(backend: backend)
-        try await service.bootstrap()
+        let service = AuthService(backend: backend, userDefaults: ephemeralDefaults())
+        _ = try await service.bootstrap()
 
         // When
         let error = await capturedError { try await service.refresh() }
@@ -162,8 +235,8 @@ struct AuthServiceTests {
         let backend = FakeAuthBackend()
         await backend.programCurrentSession(.returns(initialSession))
         await backend.programSignOut(.success(()))
-        let service = AuthService(backend: backend)
-        try await service.bootstrap()
+        let service = AuthService(backend: backend, userDefaults: ephemeralDefaults())
+        _ = try await service.bootstrap()
 
         // When
         try await service.signOut()
@@ -180,8 +253,8 @@ struct AuthServiceTests {
         let backend = FakeAuthBackend()
         await backend.programCurrentSession(.returns(initialSession))
         await backend.programSignOut(.failure(FakeError.network))
-        let service = AuthService(backend: backend)
-        try await service.bootstrap()
+        let service = AuthService(backend: backend, userDefaults: ephemeralDefaults())
+        _ = try await service.bootstrap()
 
         // When
         let error = await capturedError { try await service.signOut() }
@@ -197,7 +270,7 @@ struct AuthServiceTests {
     func accessTokenWhenNoSessionReturnsNil() {
         // Given
         let backend = FakeAuthBackend()
-        let service = AuthService(backend: backend)
+        let service = AuthService(backend: backend, userDefaults: ephemeralDefaults())
 
         // When / Then
         #expect(service.accessToken == nil)
@@ -211,8 +284,8 @@ struct AuthServiceTests {
         let backend = FakeAuthBackend()
         await backend.programCurrentSession(.returns(initialSession))
         await backend.programLinkApple(.failure(IdentityLinkError.identityAlreadyInUse))
-        let service = AuthService(backend: backend)
-        try await service.bootstrap()
+        let service = AuthService(backend: backend, userDefaults: ephemeralDefaults())
+        _ = try await service.bootstrap()
 
         // When
         var captured: IdentityLinkError?
