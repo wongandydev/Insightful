@@ -313,6 +313,33 @@ struct RootViewModelTests {
     }
 
     @Test
+    func signedOutRoutesToSignIn() async {
+        // Given
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: true, hasSeenOnboarding: true)
+        let viewModel = await makeViewModel(userDefaults: defaults)
+
+        // When
+        viewModel.signedOut()
+
+        // Then
+        #expect(viewModel.route == .signIn)
+    }
+
+    @Test
+    func signedOutDropsThePreviousUsersGoalContext() async {
+        // Given
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: true, hasSeenOnboarding: true)
+        let viewModel = await makeViewModel(userDefaults: defaults)
+        viewModel.goalSetupCompleted(context: populatedGoalContextResponse.context!)
+
+        // When
+        viewModel.signedOut()
+
+        // Then
+        #expect(viewModel.goalContext == nil)
+    }
+
+    @Test
     func healthKitPermissionFinishedRoutesToDailyInsightAndPersistsAskedFlag() async {
         // Given
         let defaults = makeTestUserDefaults(hasAskedForHealthKit: false, hasSeenOnboarding: true)

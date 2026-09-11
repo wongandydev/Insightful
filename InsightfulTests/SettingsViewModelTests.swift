@@ -1,3 +1,5 @@
+import AuthenticationServices
+import CryptoKit
 import Foundation
 import Testing
 @testable import Insightful
@@ -7,7 +9,7 @@ import Testing
 struct SettingsViewModelTests {
 
     @Test
-    func signOutWhenSucceedsCallsOnSignedOut() async {
+    func signOutWhenSucceedsCallsOnIdentityChanged() async {
         // Given
         let backend = FakeAuthBackend()
         await backend.programCurrentSession(.returns(session))
@@ -251,6 +253,196 @@ struct SettingsViewModelTests {
         #expect(calls.count == 2)
         #expect(calls.last?.hour == 21)
         #expect(calls.last?.minute == 15)
+    }
+
+    // MARK: - Sign in with Apple
+
+    @Test
+    func loadAppleIdentityWhenIdentityAttachedSetsAppleLinked() async {
+        // Given
+        let backend = FakeAuthBackend()
+        await backend.programHasAppleIdentity(true)
+        let viewModel = makeViewModel(backend: backend)
+
+        // When
+        viewModel.loadAppleIdentity()
+
+        // Then
+        #expect(viewModel.appleLinked)
+    }
+
+    @Test
+    func completeAppleSignInWhenLinkSucceedsSendsRawNonceAndMarksLinked() async throws {
+        // Given
+        let backend = FakeAuthBackend()
+        await backend.programLinkApple(.success(()))
+        let viewModel = makeViewModel(backend: backend)
+        let hashed = viewModel.appleRequestNonce()
+
+        // When
+        await viewModel.completeAppleSignIn(idToken: "id-token")
+
+        // Then
+        let calls = await backend.linkAppleCalls
+        #expect(calls.count == 1)
+        #expect(calls.first?.idToken == "id-token")
+        let sent = try #require(calls.first?.nonce)
+        #expect(SHA256.hash(data: Data(sent.utf8)).map { String(format: "%02x", $0) }.joined() == hashed)
+        #expect(viewModel.appleLinked)
+        #expect(viewModel.appleMessage != nil)
+    }
+
+    @Test
+    func completeAppleSignInWhenLinkSucceedsRefreshesLinkedEmail() async {
+        // Given
+        let backend = FakeAuthBackend()
+        await backend.programLinkApple(.success(()))
+        await backend.programCurrentUserEmail("relay@privaterelay.appleid.com")
+        let viewModel = makeViewModel(backend: backend)
+        _ = viewModel.appleRequestNonce()
+
+        // When
+        await viewModel.completeAppleSignIn(idToken: "id-token")
+
+        // Then
+        #expect(viewModel.linkedEmail == "relay@privaterelay.appleid.com")
+    }
+
+    @Test
+    func completeAppleSignInWhenIdentityAlreadyInUseSurfacesErrorAndLeavesUserUnlinked() async {
+        // Given
+        let backend = FakeAuthBackend()
+        await backend.programLinkApple(.failure(IdentityLinkError.identityAlreadyInUse))
+        let viewModel = makeViewModel(backend: backend)
+        _ = viewModel.appleRequestNonce()
+
+        // When
+        await viewModel.completeAppleSignIn(idToken: "id-token")
+
+        // Then
+        #expect(viewModel.appleErrorMessage != nil)
+        #expect(!viewModel.appleLinked)
+        #expect(viewModel.appleMessage == nil)
+    }
+
+    @Test
+    func completeAppleSignInWhenUserAlreadyHasAppleIdentitySkipsLink() async {
+        // Given
+        let backend = FakeAuthBackend()
+        await backend.programHasAppleIdentity(true)
+        let viewModel = makeViewModel(backend: backend)
+        _ = viewModel.appleRequestNonce()
+
+        // When
+        await viewModel.completeAppleSignIn(idToken: "id-token")
+
+        // Then
+        #expect(await backend.linkAppleCalls.isEmpty)
+        #expect(viewModel.appleLinked)
+        #expect(viewModel.appleErrorMessage == nil)
+    }
+
+    @Test
+    func completeAppleSignInWhenNoNonceRequestedSetsErrorAndSkipsLink() async {
+        // Given
+        let backend = FakeAuthBackend()
+        let viewModel = makeViewModel(backend: backend)
+
+        // When
+        await viewModel.completeAppleSignIn(idToken: "id-token")
+
+        // Then
+        #expect(viewModel.appleErrorMessage != nil)
+        #expect(await backend.linkAppleCalls.isEmpty)
+    }
+
+    @Test
+    func completeAppleSignInWhenLinkFailsSetsError() async {
+        // Given
+        let backend = FakeAuthBackend()
+        await backend.programLinkApple(.failure(FakeError.network))
+        let viewModel = makeViewModel(backend: backend)
+        _ = viewModel.appleRequestNonce()
+
+        // When
+        await viewModel.completeAppleSignIn(idToken: "id-token")
+
+        // Then
+        #expect(viewModel.appleErrorMessage != nil)
+        #expect(!viewModel.appleLinked)
+    }
+
+    @Test
+    func appleRequestNonceMarksLinkInFlight() {
+        // Given
+        let viewModel = makeViewModel()
+
+        // When
+        _ = viewModel.appleRequestNonce()
+
+        // Then
+        #expect(viewModel.isLinkingApple)
+    }
+
+    @Test
+    func handleAppleAuthorizationWhenCancelledStaysSilentAndEndsInFlight() async {
+        // Given
+        let viewModel = makeViewModel()
+        _ = viewModel.appleRequestNonce()
+
+        // When
+        await viewModel.handleAppleAuthorization(.failure(ASAuthorizationError(.canceled)))
+
+        // Then
+        #expect(!viewModel.isLinkingApple)
+        #expect(viewModel.appleErrorMessage == nil)
+    }
+
+    @Test
+    func handleAppleAuthorizationWhenCancelledDiscardsPendingNonce() async {
+        // Given
+        let backend = FakeAuthBackend()
+        let viewModel = makeViewModel(backend: backend)
+        _ = viewModel.appleRequestNonce()
+        await viewModel.handleAppleAuthorization(.failure(ASAuthorizationError(.canceled)))
+
+        // When
+        await viewModel.completeAppleSignIn(idToken: "id-token")
+
+        // Then
+        #expect(await backend.linkAppleCalls.isEmpty)
+        #expect(viewModel.appleErrorMessage != nil)
+    }
+
+    @Test
+    func handleAppleAuthorizationWhenFailedSurfacesError() async {
+        // Given
+        let viewModel = makeViewModel()
+        _ = viewModel.appleRequestNonce()
+
+        // When
+        await viewModel.handleAppleAuthorization(.failure(ASAuthorizationError(.failed)))
+
+        // Then
+        #expect(viewModel.appleErrorMessage != nil)
+        #expect(!viewModel.isLinkingApple)
+    }
+
+    @Test
+    func completeAppleSignInWhenNonceAlreadySpentSkipsSecondLink() async {
+        // Given
+        let backend = FakeAuthBackend()
+        await backend.programLinkApple(.failure(FakeError.network))
+        let viewModel = makeViewModel(backend: backend)
+        _ = viewModel.appleRequestNonce()
+        await viewModel.completeAppleSignIn(idToken: "id-token")
+
+        // When
+        await viewModel.completeAppleSignIn(idToken: "id-token")
+
+        // Then
+        #expect(await backend.linkAppleCalls.count == 1)
+        #expect(viewModel.appleErrorMessage != nil)
     }
 
     // MARK: - Helpers

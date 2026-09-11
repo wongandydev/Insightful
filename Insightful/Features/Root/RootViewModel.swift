@@ -130,6 +130,17 @@ final class RootViewModel {
         route = .main
     }
 
+    /// Called by ``SettingsViewModel/signOut()`` once the session is cleared.
+    ///
+    /// Routes to ``RootRoute/signIn`` rather than re-running the cold start:
+    /// ``start()`` would bootstrap a brand-new anonymous user, stranding an
+    /// account holder on an identity that isn't theirs with no way back. The
+    /// cached ``goalContext`` is dropped — it belongs to the user who left.
+    func signedOut() {
+        goalContext = nil
+        route = .signIn
+    }
+
     /// Called by ``SettingsViewModel/resetGoal()`` when the user opts to
     /// redo goal setup. Routes back to the goal-setup screen; auth and
     /// HealthKit-asked state stay intact.
