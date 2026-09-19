@@ -313,6 +313,33 @@ struct RootViewModelTests {
     }
 
     @Test
+    func signedOutRoutesToSignIn() async {
+        // Given
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: true, hasSeenOnboarding: true)
+        let viewModel = await makeViewModel(userDefaults: defaults)
+
+        // When
+        viewModel.signedOut()
+
+        // Then
+        #expect(viewModel.route == .signIn)
+    }
+
+    @Test
+    func signedOutDropsThePreviousUsersGoalContext() async {
+        // Given
+        let defaults = makeTestUserDefaults(hasAskedForHealthKit: true, hasSeenOnboarding: true)
+        let viewModel = await makeViewModel(userDefaults: defaults)
+        viewModel.goalSetupCompleted(context: populatedGoalContextResponse.context!)
+
+        // When
+        viewModel.signedOut()
+
+        // Then
+        #expect(viewModel.goalContext == nil)
+    }
+
+    @Test
     func healthKitPermissionFinishedRoutesToDailyInsightAndPersistsAskedFlag() async {
         // Given
         let defaults = makeTestUserDefaults(hasAskedForHealthKit: false, hasSeenOnboarding: true)
@@ -324,6 +351,38 @@ struct RootViewModelTests {
         // Then
         #expect(viewModel.route == .main)
         #expect(defaults.bool(forKey: PreferenceKeys.hasAskedForHealthKitAuthorization))
+    }
+
+    @Test("start routes to sign-in when a known device's session was terminated server-side")
+    func startWhenSessionLostRoutesToSignIn() async {
+        // Given — a device that authenticated before, whose session is now gone.
+        let defaults = ephemeralDefaults()
+        let backend = FakeAuthBackend()
+        await backend.programCurrentSession(.returnsNil)
+        await backend.programSignIn(.returns(AuthSession(
+            accessToken: "a",
+            refreshToken: "r",
+            expiresAt: Date(timeIntervalSince1970: 1_900_000_000)
+        )))
+        _ = try? await AuthService(backend: backend, userDefaults: defaults).bootstrap()
+
+        let userService = FakeUserService()
+        let goalService = FakeGoalService()
+        let viewModel = RootViewModel(
+            authService: AuthService(backend: backend, userDefaults: defaults),
+            userService: userService,
+            goalService: goalService,
+            userDefaults: makeTestUserDefaults(hasAskedForHealthKit: true, hasSeenOnboarding: true)
+        )
+
+        // When
+        await viewModel.start()
+
+        // Then — stops before touching the API, so nothing is fetched as the
+        // wrong user and no replacement identity is created.
+        #expect(viewModel.route == .signIn)
+        #expect(await backend.signInCalls == 1)
+        #expect(await userService.syncCalls == 0)
     }
 
     // MARK: - Helpers
@@ -365,7 +424,7 @@ struct RootViewModelTests {
         await backend.programCurrentSession(.returns(session))
 
         return RootViewModel(
-            authService: AuthService(backend: backend),
+            authService: AuthService(backend: backend, userDefaults: ephemeralDefaults()),
             userService: userService,
             goalService: goalService,
             userDefaults: userDefaults

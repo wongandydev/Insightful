@@ -17,6 +17,12 @@ enum RootRoute: Equatable, Sendable {
     /// ``PreferenceKeys/hasSeenOnboarding``.
     case onboarding
 
+    /// The user signed out. Offers Apple / email sign-in so an account holder
+    /// gets back to their own data, plus a way to carry on anonymously.
+    /// Reached only from sign-out — a cold start with no cached session still
+    /// signs in anonymously, so first launch is unchanged.
+    case signIn
+
     /// User has no saved goal context — route them through the goal-setup
     /// conversation.
     case goalSetup
